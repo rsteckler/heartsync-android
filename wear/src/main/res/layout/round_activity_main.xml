@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity"
+    tools:deviceIds="wear_round"
+    android:orientation="vertical"
+    android:background="#D32F2F"
+    android:gravity="center_horizontal">
+
+    <TextView
+        android:id="@+id/text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="HeartSync"
+        android:layout_marginTop="@dimen/padding_top" />
+
+    <FrameLayout
+        android:layout_width="85sp"
+        android:layout_height="85sp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="@dimen/padding_external"
+        android:clipChildren="false">
+
+    <ImageButton
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/imageButton"
+        android:src="@drawable/ic_main"
+        android:background="@android:color/transparent"
+        />
+
+    <ProgressBar
+        android:id="@+id/progressBeat"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="80sp"
+        android:layout_height="80sp"
+        android:indeterminate="false"
+        android:max="100"
+        android:progress="20"
+        android:progressDrawable="@drawable/progress_ring"
+        android:visibility="visible"
+        android:layout_gravity="center"
+        android:focusableInTouchMode="false" />
+
+    </FrameLayout>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="0 bpm"
+        android:id="@+id/textCurrentMeasure"
+        android:layout_marginTop="@dimen/padding_external" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="No signal"
+        android:id="@+id/textAccuracy"
+        android:layout_marginTop="@dimen/padding_external" />
+</LinearLayout>
