@@ -308,8 +308,10 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
-        if (mGoogleApiFitnessClient.isConnected()) {
-            mGoogleApiFitnessClient.disconnect();
+        if (mGoogleApiFitnessClient != null) {
+            if (mGoogleApiFitnessClient.isConnected()) {
+                mGoogleApiFitnessClient.disconnect();
+            }
         }
         LocalBroadcastManager.getInstance(this).unregisterReceiver(mHeartRateReceiver);
 
@@ -322,8 +324,10 @@ public class MainActivity extends Activity {
             authInProgress = false;
             if (resultCode == RESULT_OK) {
                 // Make sure the app is not already connected or attempting to connect
-                if (!mGoogleApiFitnessClient.isConnecting() && !mGoogleApiFitnessClient.isConnected()) {
-                    mGoogleApiFitnessClient.connect();
+                if (mGoogleApiFitnessClient != null) {
+                    if (!mGoogleApiFitnessClient.isConnecting() && !mGoogleApiFitnessClient.isConnected()) {
+                        mGoogleApiFitnessClient.connect();
+                    }
                 }
             }
         }
@@ -408,7 +412,7 @@ public class MainActivity extends Activity {
                                 editor.putBoolean("first_run", false);
                                 editor.apply();
 
-                                }
+                            }
 
                             @Override
                             public void onConnectionSuspended(int i) {
