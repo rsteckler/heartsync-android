@@ -324,8 +324,10 @@ public class MainActivity extends Activity {
             authInProgress = false;
             if (resultCode == RESULT_OK) {
                 // Make sure the app is not already connected or attempting to connect
-                if (!mGoogleApiFitnessClient.isConnecting() && !mGoogleApiFitnessClient.isConnected()) {
-                    mGoogleApiFitnessClient.connect();
+                if (mGoogleApiFitnessClient != null) {
+                    if (!mGoogleApiFitnessClient.isConnecting() && !mGoogleApiFitnessClient.isConnected()) {
+                        mGoogleApiFitnessClient.connect();
+                    }
                 }
             }
         }
