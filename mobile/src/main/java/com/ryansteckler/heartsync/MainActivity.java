@@ -308,8 +308,10 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
-        if (mGoogleApiFitnessClient.isConnected()) {
-            mGoogleApiFitnessClient.disconnect();
+        if (mGoogleApiFitnessClient != null) {
+            if (mGoogleApiFitnessClient.isConnected()) {
+                mGoogleApiFitnessClient.disconnect();
+            }
         }
         LocalBroadcastManager.getInstance(this).unregisterReceiver(mHeartRateReceiver);
 
@@ -408,7 +410,7 @@ public class MainActivity extends Activity {
                                 editor.putBoolean("first_run", false);
                                 editor.apply();
 
-                                }
+                            }
 
                             @Override
                             public void onConnectionSuspended(int i) {
