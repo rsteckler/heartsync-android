@@ -13,6 +13,7 @@ import android.support.v4.content.LocalBroadcastManager;
 import android.support.wearable.view.WatchViewStub;
 import android.util.Log;
 import android.view.View;
+import android.view.animation.AccelerateDecelerateInterpolator;
 import android.view.animation.LinearInterpolator;
 import android.widget.ImageButton;
 import android.widget.ProgressBar;
@@ -25,7 +26,6 @@ public class MainActivity extends Activity  {
 
     private boolean mStarted = false;
 
-    ValueAnimator progressAnimation = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,13 +43,13 @@ public class MainActivity extends Activity  {
                 final ProgressBar progressBeat = (ProgressBar)stub.findViewById(R.id.progressBeat);
                 progressBeat.setProgress(0);
 
-                progressAnimation = ValueAnimator.ofInt(0, 100);
-                BeatAnimationListener welcomeListener = new BeatAnimationListener(progressBeat, progressAnimation);
+                final ValueAnimator progressAnimation = ValueAnimator.ofInt(0, 100);
+                final BeatAnimationListener welcomeListener = new BeatAnimationListener(progressBeat, progressAnimation);
                 progressAnimation.addListener(welcomeListener);
                 progressAnimation.addUpdateListener(welcomeListener);
-                progressAnimation.setDuration(600);
+                progressAnimation.setDuration(900);
                 progressAnimation.setStartDelay(100); //Create a small gap between each step, so they look discrete
-                progressAnimation.setInterpolator(new LinearInterpolator());
+                progressAnimation.setInterpolator(new AccelerateDecelerateInterpolator());
 
                 ImageButton startStop = (ImageButton)stub.findViewById(R.id.imageButton);
                 startStop.setOnClickListener(new View.OnClickListener() {
@@ -63,8 +63,7 @@ public class MainActivity extends Activity  {
                             service.putExtra("mode", HeartRateMeasurementService.MODE_NONE);
                             startService(service);
 
-                            progressAnimation.cancel();
-                            progressBeat.setProgress(0);
+                            welcomeListener.mKeepRunning = false;
 
                             mStarted = false;
 
@@ -76,6 +75,7 @@ public class MainActivity extends Activity  {
                             startService(service);
 
                             progressBeat.setProgress(0);
+                            welcomeListener.mKeepRunning = true;
 
                             //Start the animations.
                             progressAnimation.start();
@@ -85,11 +85,22 @@ public class MainActivity extends Activity  {
                     }
                 });
 
+                if (HeartRateMeasurementService.mMeasuring) {
+                    progressBeat.setProgress(0);
+                    welcomeListener.mKeepRunning = true;
+
+                    //Start the animations.
+                    progressAnimation.start();
+
+                    mStarted = true;
+                }
+
             }
         });
     }
 
     private class BeatAnimationListener implements Animator.AnimatorListener, ValueAnimator.AnimatorUpdateListener {
+        public boolean mKeepRunning = true;
         @Override
         public void onAnimationCancel(Animator animator) {
         }
@@ -119,7 +130,9 @@ public class MainActivity extends Activity  {
         @Override
         public void onAnimationEnd(Animator animator) {
             mProgressChecking.setProgress(0);
-            mProgressAnimation.start();
+            if (mKeepRunning) {
+                mProgressAnimation.start();
+            }
         }
     }
 

@@ -34,15 +34,16 @@
     <ProgressBar
         android:id="@+id/progressBeat"
         style="?android:attr/progressBarStyleHorizontal"
-        android:layout_width="80sp"
-        android:layout_height="80sp"
+        android:layout_width="117sp"
+        android:layout_height="117sp"
         android:indeterminate="false"
         android:max="100"
-        android:progress="20"
-        android:progressDrawable="@drawable/progress_ring"
+        android:progress="40"
         android:visibility="visible"
         android:layout_gravity="center"
+        android:progressDrawable="@drawable/progress_ring"
         android:focusableInTouchMode="false" />
+
 
     </FrameLayout>
 

@@ -44,7 +44,7 @@ public class MainActivity extends Activity {
     private TextView mAccuracyText;
 
     IabHelper mHelper;
-    private boolean mIsPremium = true;
+    private boolean mIsPremium = false;
 
     private static final int REQUEST_OAUTH = 1;
 
@@ -73,9 +73,6 @@ public class MainActivity extends Activity {
         }
 
         LocalBroadcastManager.getInstance(this).registerReceiver(mHeartRateReceiver, new IntentFilter("heartRateUpdate"));
-
-        buildFitnessClient();
-        mGoogleApiFitnessClient.connect();
 
         final Spinner spinner = (Spinner) findViewById(R.id.spinnerFrequency);
         final Switch switchEnabled = (Switch)findViewById(R.id.switchAutoUpdate);
@@ -118,8 +115,6 @@ public class MainActivity extends Activity {
             }
         });
 
-        updateDonationUi();
-
         Button buttonDonate = (Button)findViewById(R.id.buttonDonate);
         buttonDonate.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -127,6 +122,33 @@ public class MainActivity extends Activity {
                 mHelper.launchPurchaseFlow(MainActivity.this, "donate_1", 1, mPurchaseFinishedListener, "1");
             }
         });
+
+        //Do first run stuff
+        final SharedPreferences prefs = getSharedPreferences("com.ryansteckler.heartsync" + "_preferences", Context.MODE_PRIVATE);
+        boolean firstRun = prefs.getBoolean("first_run", true);
+        if (firstRun) {
+            SharedPreferences.Editor editor = prefs.edit();
+            editor.putBoolean("enable_auto_update", true);
+            editor.putInt("update_frequency", 6);
+            editor.apply();
+
+            setMeasurementAlarm(true, spinner);
+
+            buildFitnessClient();
+            new AlertDialog.Builder(this)
+                    .setTitle("Connect to Google Fit")
+                    .setMessage("We need to connect your Google Fit account to update your stats.")
+                    .setNeutralButton("OK", new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int which) {
+                            mGoogleApiFitnessClient.connect();
+                        }
+                    })
+                    .setIcon(android.R.drawable.ic_dialog_alert)
+                    .show();
+        }
+
+        updateDonationUi();
+
     }
 
     // Our handler for received Intents. This will be called whenever an Intent
@@ -198,7 +220,16 @@ public class MainActivity extends Activity {
 
             AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
             alarmManager.setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, interval, interval, alarmPendingIntent);
+        } else {
+            PendingIntent alarmPendingIntent;
+            Intent alarmIntent = new Intent(this, RequestMeasurementReceiver.class);
+            alarmPendingIntent = PendingIntent.getBroadcast(this, 0, alarmIntent, PendingIntent.FLAG_CANCEL_CURRENT);
+
+            AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+            alarmManager.cancel(alarmPendingIntent);
+
         }
+
     }
 
     private void setupBilling() {
@@ -371,7 +402,13 @@ public class MainActivity extends Activity {
                                 //Only needed to get the oauth scope setup.
                                 Log.i("HeartSync", "Activity Thread Google Fit disconnecting.  We only needed to make sure connections work.");
                                 mGoogleApiFitnessClient.disconnect();
-                            }
+
+                                final SharedPreferences prefs = getSharedPreferences("com.ryansteckler.heartsync" + "_preferences", Context.MODE_PRIVATE);
+                                SharedPreferences.Editor editor = prefs.edit();
+                                editor.putBoolean("first_run", false);
+                                editor.apply();
+
+                                }
 
                             @Override
                             public void onConnectionSuspended(int i) {
