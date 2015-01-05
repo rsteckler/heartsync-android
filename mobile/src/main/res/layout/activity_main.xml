@@ -184,7 +184,7 @@
         <Button
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Donate to unlock settings"
+            android:text="Support HeartSync to unlock settings "
             android:id="@+id/buttonDonate"
             android:backgroundTint="#ABCCBD"
             android:layout_margin="2dp" />

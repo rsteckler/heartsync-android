@@ -249,7 +249,7 @@ public class MainActivity extends Activity {
                         Log.d("HeartSync", "IAP inventory exists");
 
                         if (inventory.hasPurchase("donate_1")) {
-                            Log.d("HeartSync", "IAP inventory contains a donation");
+                            Log.d("HeartSync", "IAP inventory contains a purchase");
 
                             mIsPremium = true;
                         }
@@ -349,13 +349,13 @@ public class MainActivity extends Activity {
                     result.getResponse() == IabHelper.BILLING_RESPONSE_RESULT_ITEM_NOT_OWNED ||
                     result.getResponse() == IabHelper.BILLING_RESPONSE_RESULT_ITEM_UNAVAILABLE)
             {
-                Toast.makeText(MainActivity.this, "Thank you for the thought, but the donation failed.", Toast.LENGTH_LONG).show();
+                Toast.makeText(MainActivity.this, "Thank you for the thought, but the purchase failed.", Toast.LENGTH_LONG).show();
             }
             else if (result.getResponse() == IabHelper.BILLING_RESPONSE_RESULT_ITEM_ALREADY_OWNED) {
-                Toast.makeText(MainActivity.this, "Thank you for the thought, but you've already donated!", Toast.LENGTH_LONG).show();
+                Toast.makeText(MainActivity.this, "Thank you for the thought, but you've already unlocked Pro Features!", Toast.LENGTH_LONG).show();
             }
             else if (result.isSuccess()) {
-                Toast.makeText(MainActivity.this, "Thank you SO much for donating!", Toast.LENGTH_LONG).show();
+                Toast.makeText(MainActivity.this, "Thank you SO much for purchasing HeartSync!", Toast.LENGTH_LONG).show();
                 mIsPremium = true;
                 updateDonationUi();
                 if (purchase.getSku().contains("consumable")) {
@@ -364,7 +364,7 @@ public class MainActivity extends Activity {
             }
             else
             {
-                Toast.makeText(MainActivity.this, "Thank you for the thought, but the donation failed.", Toast.LENGTH_LONG).show();
+                Toast.makeText(MainActivity.this, "Thank you for the thought, but the purchase failed.", Toast.LENGTH_LONG).show();
             }
 
         }
