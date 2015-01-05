@@ -6,6 +6,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.os.SystemClock;
 
 /**
  * Created by rsteckler on 1/2/15.
@@ -43,7 +44,7 @@ public class BootReceiver extends BroadcastReceiver {
                 alarmPendingIntent = PendingIntent.getBroadcast(context, 0, alarmIntent, PendingIntent.FLAG_CANCEL_CURRENT);
 
                 AlarmManager alarmManager = (AlarmManager)context.getSystemService(Context.ALARM_SERVICE);
-                alarmManager.setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, interval, interval, alarmPendingIntent);
+                alarmManager.setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + interval, interval, alarmPendingIntent);
 
             }
 
