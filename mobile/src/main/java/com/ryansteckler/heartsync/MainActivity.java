@@ -38,6 +38,9 @@ import com.ryansteckler.heartsync.inappbilling.IabResult;
 import com.ryansteckler.heartsync.inappbilling.Inventory;
 import com.ryansteckler.heartsync.inappbilling.Purchase;
 
+import java.text.DateFormat;
+import java.util.Date;
+
 public class MainActivity extends Activity {
     private GoogleApiClient mGoogleApiFitnessClient;
 
@@ -150,6 +153,10 @@ public class MainActivity extends Activity {
 
         updateDonationUi();
 
+        String nextUpdate = prefs.getString("next_update", "unscheduled");
+        TextView nextUpdateView = (TextView)findViewById(R.id.textNextUpdate);
+        nextUpdateView.setText("Next update: " + nextUpdate);
+
     }
 
     // Our handler for received Intents. This will be called whenever an Intent
@@ -196,6 +203,7 @@ public class MainActivity extends Activity {
 
     private void setMeasurementAlarm(boolean b, Spinner spinner) {
         long interval = AlarmManager.INTERVAL_DAY;
+        final SharedPreferences prefs = getSharedPreferences("com.ryansteckler.heartsync" + "_preferences", Context.MODE_PRIVATE);
         if (b) {
 
             int spinnerItem = spinner.getSelectedItemPosition();
@@ -221,6 +229,15 @@ public class MainActivity extends Activity {
 
             AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
             alarmManager.setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + interval, interval, alarmPendingIntent);
+
+            Date nextUpdateDate = new Date(SystemClock.elapsedRealtime() + interval);
+
+            String nextUpdate = DateFormat.getDateTimeInstance().format(nextUpdateDate);
+
+            SharedPreferences.Editor edit = prefs.edit();
+            edit.putString("next_update", nextUpdate);
+            edit.apply();
+
         } else {
             PendingIntent alarmPendingIntent;
             Intent alarmIntent = new Intent(this, RequestMeasurementReceiver.class);
@@ -228,6 +245,12 @@ public class MainActivity extends Activity {
 
             AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
             alarmManager.cancel(alarmPendingIntent);
+
+            String nextUpdate = "unscheduled";
+
+            SharedPreferences.Editor edit = prefs.edit();
+            edit.putString("next_update", nextUpdate);
+            edit.apply();
 
         }
 
