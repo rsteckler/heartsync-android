@@ -52,7 +52,7 @@ public class BootReceiver extends BroadcastReceiver {
                 AlarmManager alarmManager = (AlarmManager)context.getSystemService(Context.ALARM_SERVICE);
                 alarmManager.setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + interval, interval, alarmPendingIntent);
 
-                Date nextUpdateDate = new Date(SystemClock.elapsedRealtime() + interval);
+                Date nextUpdateDate = new Date(System.currentTimeMillis() + interval);
 
                 String nextUpdate = DateFormat.getDateTimeInstance().format(nextUpdateDate);
 

@@ -39,26 +39,4 @@ public class WearDataListenerService extends WearableListenerService  {
         }
     }
 
-//    @Override
-//    public void onDataChanged(DataEventBuffer dataEvents) {
-//        for (DataEvent event : dataEvents) {
-//            if (event.getType() == DataEvent.TYPE_DELETED) {
-//                Log.d("HeartSync", "DataItem deleted: " + event.getDataItem().getUri());
-//            } else if (event.getType() == DataEvent.TYPE_CHANGED) {
-//                Log.d("HeartSync", "DataItem changed: " + event.getDataItem().getUri());
-//
-//                if (event.getDataItem().getUri().getPath().equals("/update_frequency")) {
-//                    final DataMapItem dataMapItem = DataMapItem.fromDataItem(event.getDataItem());
-//                    final int newFreq = dataMapItem.getDataMap().getInt("update_frequency", 6);
-//
-//                    //Set the alarm appropriately.
-//                    if (newFreq == 0) {
-//
-//                    }
-//
-//                }
-//
-//            }
-//        }
-//    }
 }

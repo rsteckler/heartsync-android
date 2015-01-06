@@ -28,13 +28,36 @@
         android:gravity="center_horizontal"
         android:layout_marginTop="@dimen/padding_external" />
 
-    <ImageView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:id="@+id/imageView"
-        android:src="@drawable/ic_main"
-        android:layout_gravity="center_horizontal"
-        android:layout_marginTop="@dimen/padding_external" />
+            <FrameLayout
+                android:layout_width="85sp"
+                android:layout_height="85sp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="@dimen/padding_external"
+                android:clipChildren="false">
+
+                <ImageButton
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/measureNowButton"
+                    android:src="@drawable/ic_main"
+                    android:background="@android:color/transparent"
+                    />
+
+                <ProgressBar
+                    android:id="@+id/progressBeat"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="117sp"
+                    android:layout_height="117sp"
+                    android:indeterminate="false"
+                    android:max="100"
+                    android:progress="40"
+                    android:visibility="visible"
+                    android:layout_gravity="center"
+                    android:progressDrawable="@drawable/progress_ring"
+                    android:focusableInTouchMode="false" />
+
+
+            </FrameLayout>
 
     <LinearLayout
         android:orientation="vertical"
@@ -47,7 +70,10 @@
             android:orientation="horizontal"
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
-            android:background="#B71C1C">
+            android:background="#B71C1C"
+            android:paddingTop="5dp"
+            android:paddingBottom="5dp"
+            android:layout_gravity="center_vertical">
 
             <TextView
                 android:layout_width="0dp"
@@ -68,7 +94,8 @@
                 android:id="@+id/textCheckNow"
                 android:background="@drawable/flat_button_background"
                 android:padding="@dimen/padding_internal"
-                style="@style/TextLabel_light" />
+                style="@style/TextLabel_light"
+                android:layout_gravity="center_vertical" />
         </LinearLayout>
 
         <LinearLayout

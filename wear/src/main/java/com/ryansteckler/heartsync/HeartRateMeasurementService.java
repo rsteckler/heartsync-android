@@ -19,9 +19,13 @@ import android.util.Log;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.PendingResult;
+import com.google.android.gms.wearable.DataApi;
 import com.google.android.gms.wearable.MessageApi;
 import com.google.android.gms.wearable.Node;
 import com.google.android.gms.wearable.NodeApi;
+import com.google.android.gms.wearable.PutDataMapRequest;
+import com.google.android.gms.wearable.PutDataRequest;
 import com.google.android.gms.wearable.Wearable;
 
 import java.nio.ByteBuffer;
@@ -50,7 +54,7 @@ public class HeartRateMeasurementService extends Service implements SensorEventL
     private int mCurrentMode = MODE_NONE;
 
     long mStartTime = 0;
-    public static boolean mMeasuring = false;
+    private static boolean mMeasuring = false;
 
     private Looper mServiceLooper;
     private ServiceHandler mServiceHandler;
@@ -64,7 +68,7 @@ public class HeartRateMeasurementService extends Service implements SensorEventL
         public void handleMessage(Message msg) {
 
             Log.d("HeartSync", "Starting new measurement.");
-            mMeasuring = true;
+            setMeasuring(true);
             PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
             mWakelock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "HeartSyncMeasureWakelock");
             mWakelock.acquire();
@@ -89,6 +93,7 @@ public class HeartRateMeasurementService extends Service implements SensorEventL
             stopSelf();
         }
     }
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -194,6 +199,22 @@ public class HeartRateMeasurementService extends Service implements SensorEventL
         return null;
     }
 
+    public static boolean getMeasuring() {
+        return mMeasuring;
+    }
+
+    private void setMeasuring(boolean nowMeasuring) {
+        mMeasuring = nowMeasuring;
+
+        //Update the phone.
+        PutDataMapRequest dataMap = PutDataMapRequest.create("/monitoring");
+        dataMap.getDataMap().putBoolean("monitoring", mMeasuring);
+        dataMap.getDataMap().putLong("timestamp", new Date().getTime());
+        PutDataRequest request = dataMap.asPutDataRequest();
+        PendingResult<DataApi.DataItemResult> pendingResult = Wearable.DataApi.putDataItem(mGoogleApiClient, request);
+
+    }
+
     @Override
     public void onDestroy() {
         Log.d("HeartSync", "Destroying HeartRateMeasurementService.");
@@ -270,7 +291,7 @@ public class HeartRateMeasurementService extends Service implements SensorEventL
                             }
 
                             Log.d("HeartSync", "Finished measurement.");
-                            mMeasuring = false;
+                            setMeasuring(false);
                         }
                     }
                 }).start();
@@ -299,7 +320,7 @@ public class HeartRateMeasurementService extends Service implements SensorEventL
                     }
 
                     Log.d("HeartSync", "Finished measurement.");
-                    mMeasuring = false;
+                    setMeasuring(false);
                 }
             }
 

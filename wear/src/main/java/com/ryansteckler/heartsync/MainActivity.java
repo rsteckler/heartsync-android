@@ -8,13 +8,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
-import android.os.Handler;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.wearable.view.WatchViewStub;
-import android.util.Log;
 import android.view.View;
 import android.view.animation.AccelerateDecelerateInterpolator;
-import android.view.animation.LinearInterpolator;
 import android.widget.ImageButton;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -23,9 +20,6 @@ public class MainActivity extends Activity  {
 
     private TextView mRateText;
     private TextView mAccuracyText;
-
-    private boolean mStarted = false;
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,15 +51,13 @@ public class MainActivity extends Activity  {
                     @Override
                     public void onClick(View view) {
 
-                        if (mStarted) {
+                        if (HeartRateMeasurementService.getMeasuring()) {
                             //Stop
                             Intent service = new Intent(MainActivity.this, HeartRateMeasurementService.class);
                             service.putExtra("mode", HeartRateMeasurementService.MODE_NONE);
                             startService(service);
 
                             welcomeListener.mKeepRunning = false;
-
-                            mStarted = false;
 
                         } else {
                             //Start
@@ -79,20 +71,16 @@ public class MainActivity extends Activity  {
 
                             //Start the animations.
                             progressAnimation.start();
-
-                            mStarted = true;
                         }
                     }
                 });
 
-                if (HeartRateMeasurementService.mMeasuring) {
+                if (HeartRateMeasurementService.getMeasuring()) {
                     progressBeat.setProgress(0);
                     welcomeListener.mKeepRunning = true;
 
                     //Start the animations.
                     progressAnimation.start();
-
-                    mStarted = true;
                 }
 
             }

@@ -1,5 +1,7 @@
 package com.ryansteckler.heartsync;
 
+import android.animation.Animator;
+import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.app.AlarmManager;
 import android.app.AlertDialog;
@@ -15,13 +17,14 @@ import android.os.Bundle;
 import android.os.SystemClock;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
+import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CompoundButton;
+import android.widget.ImageButton;
+import android.widget.ProgressBar;
 import android.widget.Spinner;
 import android.widget.Switch;
 import android.widget.TextView;
@@ -42,16 +45,24 @@ import java.text.DateFormat;
 import java.util.Date;
 
 public class MainActivity extends Activity {
+    public static final String PREF_UPDATE_FREQUENCY = "update_frequency";
+    public static final String PREF_ENABLE_AUTO_UPDATE = "enable_auto_update";
+    public static final String PREF_FIRST_RUN = "first_run";
+    public static final String PREF_MONITORING_NOW = "monitoring_now";
+    public static final String PREF_NEXT_UPDATE = "next_update";
     private GoogleApiClient mGoogleApiFitnessClient;
 
     private TextView mRateTextView;
-    private TextView mAccuracyText;
+    private TextView mAccuracyTextView;
+    private TextView mNextUpdateTextView;
+    private Spinner mFrequencySpinner;
+    private Switch mAutoUpdateSwitch;
+    private ProgressBar mBeatProgress;
+    private ImageButton mMeasureNowButton;
+    private ArrayAdapter<CharSequence> mFrequencySpinnerAdapter;
 
-    IabHelper mHelper;
+    IabHelper mBillingHelper;
     private boolean mIsPremium = false;
-
-    private static final int REQUEST_OAUTH = 1;
-
     /**
      *  Track whether an authorization activity is stacking over the current activity, i.e. when
      *  a known auth error is being resolved, such as showing the account chooser or presenting a
@@ -59,86 +70,29 @@ public class MainActivity extends Activity {
      */
     private static final String AUTH_PENDING = "auth_state_pending";
     private boolean authInProgress = false;
-
-    ArrayAdapter<CharSequence> mSpinnerAdapter;
+    private static final int REQUEST_OAUTH = 1;
+    private Button mDonateButton;
+    private SharedPreferences mPreferences;
+    private TextView mCheckNowButton;
+    private ValueAnimator mProgressAnimation;
+    private BeatAnimationListener mBeatAnimationListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        setupBilling();
+        mPreferences = getSharedPreferences("com.ryansteckler.heartsync" + "_preferences", Context.MODE_PRIVATE);
 
-        mRateTextView = (TextView)findViewById(R.id.textRate);
-        mAccuracyText = (TextView)findViewById(R.id.textAccuracy);
-
-        if (savedInstanceState != null) {
-            authInProgress = savedInstanceState.getBoolean(AUTH_PENDING);
-        }
-
-        LocalBroadcastManager.getInstance(this).registerReceiver(mHeartRateReceiver, new IntentFilter("heartRateUpdate"));
-
-        final Spinner spinner = (Spinner) findViewById(R.id.spinnerFrequency);
-        final Switch switchEnabled = (Switch)findViewById(R.id.switchAutoUpdate);
-        switchEnabled.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton compoundButton, final boolean b) {
-                //Update the data item and store the setting.
-                final SharedPreferences prefs = getSharedPreferences("com.ryansteckler.heartsync" + "_preferences", Context.MODE_PRIVATE);
-                SharedPreferences.Editor editor = prefs.edit();
-                editor.putBoolean("enable_auto_update", b);
-                editor.apply();
-
-                setMeasurementAlarm(b, spinner);
-
-            }
-        });
-
-
-        // Create an ArrayAdapter using the string array and a default spinner layout
-        mSpinnerAdapter = ArrayAdapter.createFromResource(this, R.array.frequency_array, android.R.layout.simple_spinner_item);
-        // Specify the layout to use when the list of choices appears
-        mSpinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        // Apply the adapter to the spinner
-        spinner.setAdapter(mSpinnerAdapter);
-        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> adapterView, View view, final int i, long l) {
-                final SharedPreferences prefs = getSharedPreferences("com.ryansteckler.heartsync" + "_preferences", Context.MODE_PRIVATE);
-                SharedPreferences.Editor editor = prefs.edit();
-                editor.putInt("update_frequency", i);
-                editor.apply();
-
-                boolean b = switchEnabled.isChecked();
-                setMeasurementAlarm(b, spinner);
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> adapterView) {
-
-            }
-        });
-
-        Button buttonDonate = (Button)findViewById(R.id.buttonDonate);
-        buttonDonate.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                mHelper.launchPurchaseFlow(MainActivity.this, "donate_1", 1, mPurchaseFinishedListener, "1");
-            }
-        });
-
-        //Do first run stuff
-        final SharedPreferences prefs = getSharedPreferences("com.ryansteckler.heartsync" + "_preferences", Context.MODE_PRIVATE);
-        boolean firstRun = prefs.getBoolean("first_run", true);
-        if (firstRun) {
-            SharedPreferences.Editor editor = prefs.edit();
-            editor.putBoolean("enable_auto_update", true);
-            editor.putInt("update_frequency", 6);
+        if (isFirstRun()) {
+            //Do first run stuff
+            //Set initial prefs
+            SharedPreferences.Editor editor = mPreferences.edit();
+            editor.putBoolean(PREF_ENABLE_AUTO_UPDATE, true);
+            editor.putInt(PREF_UPDATE_FREQUENCY, 6);
+            editor.putBoolean(PREF_FIRST_RUN, false);
             editor.apply();
 
-            setMeasurementAlarm(true, spinner);
-
-            buildFitnessClient();
             new AlertDialog.Builder(this)
                     .setTitle("Connect to Google Fit")
                     .setMessage("We need to connect your Google Fit account to update your stats.")
@@ -149,15 +103,172 @@ public class MainActivity extends Activity {
                     })
                     .setIcon(android.R.drawable.ic_dialog_alert)
                     .show();
+
+            setMeasurementAlarm(true, 6);
+
         }
+
+        setupBilling();
+
+        setupControls();
+
+        LocalBroadcastManager.getInstance(this).registerReceiver(mHeartRateReceiver, new IntentFilter("heartRateUpdate"));
+
+        //Make sure we're connected to Fit
+        if (savedInstanceState != null) {
+            authInProgress = savedInstanceState.getBoolean(AUTH_PENDING);
+        }
+        verifyFitConnection();
+    }
+
+    private void verifyFitConnection() {
+        buildFitnessClient();
+        mGoogleApiFitnessClient.connect();
+    }
+
+    private boolean isFirstRun() {
+        return mPreferences.getBoolean(PREF_FIRST_RUN, true);
+    }
+
+    private void setupControls() {
+        mRateTextView = (TextView)findViewById(R.id.textRate);
+        mAccuracyTextView = (TextView)findViewById(R.id.textAccuracy);
+        mFrequencySpinner = (Spinner) findViewById(R.id.spinnerFrequency);
+        mAutoUpdateSwitch = (Switch)findViewById(R.id.switchAutoUpdate);
+        mCheckNowButton = (TextView)findViewById(R.id.textCheckNow);
+        mBeatProgress = (ProgressBar)findViewById(R.id.progressBeat);
+        mMeasureNowButton = (ImageButton)findViewById(R.id.measureNowButton);
+
+        //Setup the spinner adapter.
+        // Create an ArrayAdapter using the string array and a default spinner layout
+        mFrequencySpinnerAdapter = ArrayAdapter.createFromResource(this, R.array.frequency_array, android.R.layout.simple_spinner_item);
+        // Specify the layout to use when the list of choices appears
+        mFrequencySpinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        // Apply the adapter to the spinner
+        mFrequencySpinner.setAdapter(mFrequencySpinnerAdapter);
+
+        mDonateButton = (Button)findViewById(R.id.buttonDonate);
+        mDonateButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                mBillingHelper.launchPurchaseFlow(MainActivity.this, "donate_1", 1, mPurchaseFinishedListener, "1");
+            }
+        });
 
         updateDonationUi();
 
-        String nextUpdate = prefs.getString("next_update", "unscheduled");
-        TextView nextUpdateView = (TextView)findViewById(R.id.textNextUpdate);
-        nextUpdateView.setText("Next update: " + nextUpdate);
+        boolean enabled = mPreferences.getBoolean(PREF_ENABLE_AUTO_UPDATE, true);
+        int freq = mPreferences.getInt(PREF_UPDATE_FREQUENCY, 6);
+        mFrequencySpinner.setSelection(freq);
+        mFrequencySpinner.setTag(freq);
 
+        mAutoUpdateSwitch.setChecked(enabled);
+        mAutoUpdateSwitch.setTag(enabled);
+
+        String nextUpdate = mPreferences.getString(PREF_NEXT_UPDATE, "unscheduled");
+        mNextUpdateTextView = (TextView)findViewById(R.id.textNextUpdate);
+        mNextUpdateTextView.setText("Next update: " + nextUpdate);
+
+        mAutoUpdateSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, final boolean b) {
+                if (b != (Boolean) mAutoUpdateSwitch.getTag()) {
+                    //Update the data item and store the setting.
+                    SharedPreferences.Editor editor = mPreferences.edit();
+                    editor.putBoolean(PREF_ENABLE_AUTO_UPDATE, b);
+                    editor.apply();
+
+                    setMeasurementAlarm(b, mFrequencySpinner.getSelectedItemPosition());
+                }
+            }
+        });
+
+        mCheckNowButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                //Request a measurement now
+                Intent service = new Intent(MainActivity.this, RequestMeasurementService.class);
+                startService(service);
+
+                //And reset the alarm
+                boolean autoUpdate = mPreferences.getBoolean(PREF_ENABLE_AUTO_UPDATE, true);
+                int frequency = mPreferences.getInt(PREF_UPDATE_FREQUENCY, 6);
+                setMeasurementAlarm(autoUpdate, frequency);
+            }
+        });
+
+        mFrequencySpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> adapterView, View view, final int i, long l) {
+                if (i != (Integer) mFrequencySpinner.getTag()) {
+                    SharedPreferences.Editor editor = mPreferences.edit();
+                    editor.putInt(PREF_UPDATE_FREQUENCY, i);
+                    editor.apply();
+
+                    boolean b = mAutoUpdateSwitch.isChecked();
+                    setMeasurementAlarm(b, i);
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> adapterView) {
+
+            }
+        });
+
+        mBeatProgress.setProgress(0);
+
+        mProgressAnimation = ValueAnimator.ofInt(0, 100);
+        mBeatAnimationListener = new BeatAnimationListener(mBeatProgress, mProgressAnimation);
+        mProgressAnimation.addListener(mBeatAnimationListener);
+        mProgressAnimation.addUpdateListener(mBeatAnimationListener);
+        mProgressAnimation.setDuration(900);
+        mProgressAnimation.setStartDelay(100); //Create a small gap between each step, so they look discrete
+        mProgressAnimation.setInterpolator(new AccelerateDecelerateInterpolator());
+
+        if (mPreferences.getBoolean(PREF_MONITORING_NOW, false)) {
+            mBeatAnimationListener.mKeepRunning = true;
+            mProgressAnimation.start();
+        }
     }
+
+    private class BeatAnimationListener implements Animator.AnimatorListener, ValueAnimator.AnimatorUpdateListener {
+        public boolean mKeepRunning = true;
+        @Override
+        public void onAnimationCancel(Animator animator) {
+        }
+
+        @Override
+        public void onAnimationRepeat(Animator animator) {
+        }
+
+        @Override
+        public void onAnimationStart(Animator animator) {
+        }
+
+        private ProgressBar mProgressChecking;
+        ValueAnimator mProgressAnimation;
+
+        public BeatAnimationListener(ProgressBar progressChecking, ValueAnimator progressAnimation) {
+            mProgressChecking = progressChecking;
+            mProgressAnimation = progressAnimation;
+        }
+
+        @Override
+        public void onAnimationUpdate(final ValueAnimator animator) {
+            int curValue = (Integer) animator.getAnimatedValue();
+            mProgressChecking.setProgress(curValue);
+        }
+
+        @Override
+        public void onAnimationEnd(Animator animator) {
+            mProgressChecking.setProgress(0);
+            if (mKeepRunning) {
+                mProgressAnimation.start();
+            }
+        }
+    }
+
 
     // Our handler for received Intents. This will be called whenever an Intent
     // with an action named "custom-event-name" is broadcasted.
@@ -193,33 +304,43 @@ public class MainActivity extends Activity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        mAccuracyText.setText(textToSet);
+                        mAccuracyTextView.setText(textToSet);
                     }
                 });
+
+            }
+            if (intent.hasExtra("monitoring")) {
+                boolean monitoring = intent.getBooleanExtra("monitoring", false);
+                if (monitoring) {
+                    //Start the animations.
+                    mBeatAnimationListener.mKeepRunning = true;
+                    mProgressAnimation.start();
+                } else {
+                    mBeatAnimationListener.mKeepRunning = false;
+                }
 
             }
         }
     };
 
-    private void setMeasurementAlarm(boolean b, Spinner spinner) {
+    private void setMeasurementAlarm(boolean b, int frequency) {
         long interval = AlarmManager.INTERVAL_DAY;
         final SharedPreferences prefs = getSharedPreferences("com.ryansteckler.heartsync" + "_preferences", Context.MODE_PRIVATE);
         if (b) {
 
-            int spinnerItem = spinner.getSelectedItemPosition();
-            if (spinnerItem == 0) {
+            if (frequency == 0) {
                 interval = 5 * 60000;
-            } else if (spinnerItem == 1) {
+            } else if (frequency == 1) {
                 interval = AlarmManager.INTERVAL_FIFTEEN_MINUTES;
-            } else if (spinnerItem == 2) {
+            } else if (frequency == 2) {
                 interval = AlarmManager.INTERVAL_HALF_HOUR;
-            } else if (spinnerItem == 3) {
+            } else if (frequency == 3) {
                 interval = AlarmManager.INTERVAL_HOUR;
-            } else if (spinnerItem == 4) {
+            } else if (frequency == 4) {
                 interval = AlarmManager.INTERVAL_HOUR * 4;
-            } else if (spinnerItem == 5) {
+            } else if (frequency == 5) {
                 interval = AlarmManager.INTERVAL_HALF_DAY;
-            } else if (spinnerItem == 6) {
+            } else if (frequency == 6) {
                 interval = AlarmManager.INTERVAL_DAY;
             }
 
@@ -230,12 +351,12 @@ public class MainActivity extends Activity {
             AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
             alarmManager.setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + interval, interval, alarmPendingIntent);
 
-            Date nextUpdateDate = new Date(SystemClock.elapsedRealtime() + interval);
+            Date nextUpdateDate = new Date(System.currentTimeMillis() + interval);
 
             String nextUpdate = DateFormat.getDateTimeInstance().format(nextUpdateDate);
 
             SharedPreferences.Editor edit = prefs.edit();
-            edit.putString("next_update", nextUpdate);
+            edit.putString(PREF_NEXT_UPDATE, nextUpdate);
             edit.apply();
 
         } else {
@@ -249,7 +370,7 @@ public class MainActivity extends Activity {
             String nextUpdate = "unscheduled";
 
             SharedPreferences.Editor edit = prefs.edit();
-            edit.putString("next_update", nextUpdate);
+            edit.putString(PREF_NEXT_UPDATE, nextUpdate);
             edit.apply();
 
         }
@@ -287,10 +408,9 @@ public class MainActivity extends Activity {
 
         //Normally we would secure this key, but we're not licensing this app.
         String base64billing = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnrQWRI255GwTy8vewcA35kXt84yaUKasRri0DFQVIW2bcoSd4sci+JnvnpVhnmGZYyVjC7/y8g8ftQE/CUfLjDgSyIlqAYV0zFnjUwEI+emGD+BSMl2XxHLNXosJiNRbxOtvX4H+Qu1QgefDYsC3vcEG/+3EGjEXqIu/b0zldPouIhz9F96/YRzgZWbcA+eM1zdOg/3gzcn851EIul2+g+s3V8RjZ0+zA4+mJ+F0okhoddtO8H3ecHmVud3t44yimf2WBD+TVbJzcGh0geID5FlOw3287+zMBQ3PE7SVN2fu0oPd0mFUIpFhQUUOl+vpSC7hiVT//UydSpu3vEoRLwIDAQAB";
-        mHelper = new IabHelper(this, base64billing);
-        mHelper.startSetup(new IabHelper.OnIabSetupFinishedListener() {
-            public void onIabSetupFinished(IabResult result)
-            {
+        mBillingHelper = new IabHelper(this, base64billing);
+        mBillingHelper.startSetup(new IabHelper.OnIabSetupFinishedListener() {
+            public void onIabSetupFinished(IabResult result) {
                 if (!result.isSuccess()) {
                     Log.d("HeartSync", "In-app Billing setup failed: " + result);
                     new AlertDialog.Builder(MainActivity.this)
@@ -303,9 +423,8 @@ public class MainActivity extends Activity {
                             .setIcon(android.R.drawable.ic_dialog_alert)
                             .show();
 
-                }
-                else {
-                    mHelper.queryInventoryAsync(false, mGotInventoryListener);
+                } else {
+                    mBillingHelper.queryInventoryAsync(false, mGotInventoryListener);
                 }
 
             }
@@ -315,8 +434,8 @@ public class MainActivity extends Activity {
 
     private void updateDonationUi() {
         final SharedPreferences prefs = getSharedPreferences("com.ryansteckler.heartsync" + "_preferences", Context.MODE_PRIVATE);
-        boolean enabled = prefs.getBoolean("enable_auto_update", true);
-        int spinnerItem = prefs.getInt("update_frequency", 0);
+        boolean enabled = prefs.getBoolean(PREF_ENABLE_AUTO_UPDATE, true);
+        int spinnerItem = prefs.getInt(PREF_UPDATE_FREQUENCY, 0);
 
         Switch switchEnabled = (Switch)findViewById(R.id.switchAutoUpdate);
         switchEnabled.setChecked(enabled);
@@ -356,7 +475,7 @@ public class MainActivity extends Activity {
             }
         }
 
-        if (!mHelper.handleActivityResult(requestCode, resultCode, data)) {
+        if (!mBillingHelper.handleActivityResult(requestCode, resultCode, data)) {
             super.onActivityResult(requestCode, resultCode, data);
         }
 
@@ -382,7 +501,7 @@ public class MainActivity extends Activity {
                 mIsPremium = true;
                 updateDonationUi();
                 if (purchase.getSku().contains("consumable")) {
-                    mHelper.consumeAsync(purchase, mConsumeFinishedListener);
+                    mBillingHelper.consumeAsync(purchase, mConsumeFinishedListener);
                 }
             }
             else
@@ -430,12 +549,6 @@ public class MainActivity extends Activity {
                                 //Only needed to get the oauth scope setup.
                                 Log.i("HeartSync", "Activity Thread Google Fit disconnecting.  We only needed to make sure connections work.");
                                 mGoogleApiFitnessClient.disconnect();
-
-                                final SharedPreferences prefs = getSharedPreferences("com.ryansteckler.heartsync" + "_preferences", Context.MODE_PRIVATE);
-                                SharedPreferences.Editor editor = prefs.edit();
-                                editor.putBoolean("first_run", false);
-                                editor.apply();
-
                             }
 
                             @Override
