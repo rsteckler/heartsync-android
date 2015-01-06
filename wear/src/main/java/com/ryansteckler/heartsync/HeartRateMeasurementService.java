@@ -1,12 +1,13 @@
 package com.ryansteckler.heartsync;
 
-import android.app.IntentService;
 import android.app.Service;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.os.BatteryManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -67,7 +68,6 @@ public class HeartRateMeasurementService extends Service implements SensorEventL
         }
         @Override
         public void handleMessage(Message msg) {
-
             Log.d("HeartSync", "Starting new measurement.");
             setMeasuring(true);
             PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
@@ -93,6 +93,18 @@ public class HeartRateMeasurementService extends Service implements SensorEventL
             // the service in the middle of handling another job
             stopSelf();
         }
+    }
+
+    private boolean canMeasure() {
+        IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+        Intent batteryStatus = this.registerReceiver(null, ifilter);
+        int status = batteryStatus.getIntExtra(BatteryManager.EXTRA_STATUS, -1);
+        if (status == BatteryManager.BATTERY_STATUS_CHARGING) {
+            return false;
+        }
+
+        return true;
+
     }
 
     @Override
@@ -182,9 +194,11 @@ public class HeartRateMeasurementService extends Service implements SensorEventL
         // For each start request, send a message to start a job and deliver the
         // start ID so we know which request we're stopping when we finish the job
         if (!mMeasuring && requestedMode != MODE_NONE) {
-            Message msg = mServiceHandler.obtainMessage();
-            msg.arg1 = startId;
-            mServiceHandler.sendMessage(msg);
+            if (canMeasure()) {
+                Message msg = mServiceHandler.obtainMessage();
+                msg.arg1 = startId;
+                mServiceHandler.sendMessage(msg);
+            }
         } else {
             Log.d("HeartSync", "We're already measuring.");
         }
