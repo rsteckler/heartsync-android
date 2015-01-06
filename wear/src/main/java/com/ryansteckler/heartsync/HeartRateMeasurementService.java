@@ -39,6 +39,7 @@ public class HeartRateMeasurementService extends Service implements SensorEventL
 
     private final static int TYPE_HEARTRATE = 0;
     private final static int TYPE_ACCURACY = 1;
+    private final static int TYPE_MONITORING = 2;
 
     private GoogleApiClient mGoogleApiClient;
 
@@ -213,6 +214,23 @@ public class HeartRateMeasurementService extends Service implements SensorEventL
         PutDataRequest request = dataMap.asPutDataRequest();
         PendingResult<DataApi.DataItemResult> pendingResult = Wearable.DataApi.putDataItem(mGoogleApiClient, request);
 
+        Log.d("HeartSync", "Monitoring on the watch has: " + (mMeasuring ? "started" : "stopped"));
+        sendMonitoringToUi(mMeasuring);
+
+    }
+
+    private void sendMonitoringToUi(boolean monitoring) {
+        sendToUi(TYPE_MONITORING, monitoring);
+    }
+
+    private void sendToUi(int type, boolean value) {
+        Intent intent = new Intent("heartRateUpdate");
+        // You can also include some extra data.
+        if (type == TYPE_MONITORING) {
+            intent.putExtra("monitoring", value);
+        }
+
+        LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
     }
 
     @Override

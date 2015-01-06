@@ -62,7 +62,7 @@ public class MainActivity extends Activity {
     private ArrayAdapter<CharSequence> mFrequencySpinnerAdapter;
 
     IabHelper mBillingHelper;
-    private boolean mIsPremium = false;
+    private boolean mIsPremium = true;
     /**
      *  Track whether an authorization activity is stacking over the current activity, i.e. when
      *  a known auth error is being resolved, such as showing the account chooser or presenting a
@@ -173,6 +173,7 @@ public class MainActivity extends Activity {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, final boolean b) {
                 if (b != (Boolean) mAutoUpdateSwitch.getTag()) {
+                    mAutoUpdateSwitch.setTag(b);
                     //Update the data item and store the setting.
                     SharedPreferences.Editor editor = mPreferences.edit();
                     editor.putBoolean(PREF_ENABLE_AUTO_UPDATE, b);
@@ -201,6 +202,7 @@ public class MainActivity extends Activity {
             @Override
             public void onItemSelected(AdapterView<?> adapterView, View view, final int i, long l) {
                 if (i != (Integer) mFrequencySpinner.getTag()) {
+                    mFrequencySpinner.setTag(i);
                     SharedPreferences.Editor editor = mPreferences.edit();
                     editor.putInt(PREF_UPDATE_FREQUENCY, i);
                     editor.apply();
@@ -325,7 +327,13 @@ public class MainActivity extends Activity {
 
     private void setMeasurementAlarm(boolean b, int frequency) {
         long interval = AlarmManager.INTERVAL_DAY;
-        final SharedPreferences prefs = getSharedPreferences("com.ryansteckler.heartsync" + "_preferences", Context.MODE_PRIVATE);
+
+        String nextUpdate = "unscheduled";
+        AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+        PendingIntent alarmPendingIntent;
+        Intent alarmIntent = new Intent(this, RequestMeasurementReceiver.class);
+        alarmPendingIntent = PendingIntent.getBroadcast(this, 0, alarmIntent, PendingIntent.FLAG_CANCEL_CURRENT);
+
         if (b) {
 
             if (frequency == 0) {
@@ -344,36 +352,23 @@ public class MainActivity extends Activity {
                 interval = AlarmManager.INTERVAL_DAY;
             }
 
-            PendingIntent alarmPendingIntent;
-            Intent alarmIntent = new Intent(this, RequestMeasurementReceiver.class);
-            alarmPendingIntent = PendingIntent.getBroadcast(this, 0, alarmIntent, PendingIntent.FLAG_CANCEL_CURRENT);
 
-            AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
             alarmManager.setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + interval, interval, alarmPendingIntent);
 
             Date nextUpdateDate = new Date(System.currentTimeMillis() + interval);
 
-            String nextUpdate = DateFormat.getDateTimeInstance().format(nextUpdateDate);
-
-            SharedPreferences.Editor edit = prefs.edit();
-            edit.putString(PREF_NEXT_UPDATE, nextUpdate);
-            edit.apply();
+            nextUpdate = DateFormat.getDateTimeInstance().format(nextUpdateDate);
 
         } else {
-            PendingIntent alarmPendingIntent;
-            Intent alarmIntent = new Intent(this, RequestMeasurementReceiver.class);
-            alarmPendingIntent = PendingIntent.getBroadcast(this, 0, alarmIntent, PendingIntent.FLAG_CANCEL_CURRENT);
-
-            AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
             alarmManager.cancel(alarmPendingIntent);
 
-            String nextUpdate = "unscheduled";
-
-            SharedPreferences.Editor edit = prefs.edit();
-            edit.putString(PREF_NEXT_UPDATE, nextUpdate);
-            edit.apply();
-
         }
+
+        SharedPreferences.Editor edit = mPreferences.edit();
+        edit.putString(PREF_NEXT_UPDATE, nextUpdate);
+        edit.apply();
+
+        mNextUpdateTextView.setText("Next update: " + nextUpdate);
 
     }
 
@@ -433,9 +428,8 @@ public class MainActivity extends Activity {
     }
 
     private void updateDonationUi() {
-        final SharedPreferences prefs = getSharedPreferences("com.ryansteckler.heartsync" + "_preferences", Context.MODE_PRIVATE);
-        boolean enabled = prefs.getBoolean(PREF_ENABLE_AUTO_UPDATE, true);
-        int spinnerItem = prefs.getInt(PREF_UPDATE_FREQUENCY, 0);
+        boolean enabled = mPreferences.getBoolean(PREF_ENABLE_AUTO_UPDATE, true);
+        int spinnerItem = mPreferences.getInt(PREF_UPDATE_FREQUENCY, 0);
 
         Switch switchEnabled = (Switch)findViewById(R.id.switchAutoUpdate);
         switchEnabled.setChecked(enabled);

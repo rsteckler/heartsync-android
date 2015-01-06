@@ -20,6 +20,9 @@ public class MainActivity extends Activity  {
 
     private TextView mRateText;
     private TextView mAccuracyText;
+    private BeatAnimationListener mBeatAnimationListener;
+    private ValueAnimator mBeatAnimation;
+    private ProgressBar mBeatProgress;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -34,16 +37,16 @@ public class MainActivity extends Activity  {
 
                 LocalBroadcastManager.getInstance(MainActivity.this).registerReceiver(mHeartRateReceiver, new IntentFilter("heartRateUpdate"));
 
-                final ProgressBar progressBeat = (ProgressBar)stub.findViewById(R.id.progressBeat);
-                progressBeat.setProgress(0);
+                mBeatProgress = (ProgressBar)stub.findViewById(R.id.progressBeat);
+                mBeatProgress.setProgress(0);
 
-                final ValueAnimator progressAnimation = ValueAnimator.ofInt(0, 100);
-                final BeatAnimationListener welcomeListener = new BeatAnimationListener(progressBeat, progressAnimation);
-                progressAnimation.addListener(welcomeListener);
-                progressAnimation.addUpdateListener(welcomeListener);
-                progressAnimation.setDuration(900);
-                progressAnimation.setStartDelay(100); //Create a small gap between each step, so they look discrete
-                progressAnimation.setInterpolator(new AccelerateDecelerateInterpolator());
+                mBeatAnimation = ValueAnimator.ofInt(0, 100);
+                mBeatAnimationListener = new BeatAnimationListener(mBeatProgress, mBeatAnimation);
+                mBeatAnimation.addListener(mBeatAnimationListener);
+                mBeatAnimation.addUpdateListener(mBeatAnimationListener);
+                mBeatAnimation.setDuration(900);
+                mBeatAnimation.setStartDelay(100); //Create a small gap between each step, so they look discrete
+                mBeatAnimation.setInterpolator(new AccelerateDecelerateInterpolator());
 
                 ImageButton startStop = (ImageButton)stub.findViewById(R.id.imageButton);
                 startStop.setOnClickListener(new View.OnClickListener() {
@@ -51,36 +54,19 @@ public class MainActivity extends Activity  {
                     @Override
                     public void onClick(View view) {
 
-                        if (HeartRateMeasurementService.getMeasuring()) {
-                            //Stop
+                        boolean currentlyMeasuring = HeartRateMeasurementService.getMeasuring();
                             Intent service = new Intent(MainActivity.this, HeartRateMeasurementService.class);
-                            service.putExtra("mode", HeartRateMeasurementService.MODE_NONE);
+                            service.putExtra("mode", currentlyMeasuring ? HeartRateMeasurementService.MODE_NONE : HeartRateMeasurementService.MODE_CONTINUAL);
                             startService(service);
-
-                            welcomeListener.mKeepRunning = false;
-
-                        } else {
-                            //Start
-                            // This is the Intent to deliver to our service.
-                            Intent service = new Intent(MainActivity.this, HeartRateMeasurementService.class);
-                            service.putExtra("mode", HeartRateMeasurementService.MODE_CONTINUAL);
-                            startService(service);
-
-                            progressBeat.setProgress(0);
-                            welcomeListener.mKeepRunning = true;
-
-                            //Start the animations.
-                            progressAnimation.start();
-                        }
                     }
                 });
 
                 if (HeartRateMeasurementService.getMeasuring()) {
-                    progressBeat.setProgress(0);
-                    welcomeListener.mKeepRunning = true;
+                    mBeatProgress.setProgress(0);
+                    mBeatAnimationListener.mKeepRunning = true;
 
                     //Start the animations.
-                    progressAnimation.start();
+                    mBeatAnimation.start();
                 }
 
             }
@@ -163,6 +149,22 @@ public class MainActivity extends Activity  {
                 });
 
             }
+            if (intent.hasExtra("monitoring")) {
+                boolean monitoring = intent.getBooleanExtra("monitoring", false);
+                if (!monitoring) {
+                    //Stop the animation
+                    mBeatAnimationListener.mKeepRunning = false;
+
+                } else {
+                    //Start the animation
+                    mBeatProgress.setProgress(0);
+                    mBeatAnimationListener.mKeepRunning = true;
+
+                    //Start the animations.
+                    mBeatAnimation.start();
+                }
+            }
+
         }
     };
 
