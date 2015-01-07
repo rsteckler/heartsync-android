@@ -237,7 +237,32 @@ public class HeartRateMeasurementService extends Service implements SensorEventL
 
         NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
-        if (!mMeasuring) {
+        if (mMeasuring) {
+            //Show the persistent notification
+            Intent notificationIntent = new Intent(this, MainActivity.class);
+            PendingIntent notificationPendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+            // Create the ongoing notification
+            Notification.Action action = new Notification.Action.Builder(R.drawable.ic_full_open, "Open", notificationPendingIntent)
+                    .build();
+
+            Notification.Builder notificationBuilder = new Notification.Builder(this)
+                    .setContentTitle("HeartSync")
+                    .setContentText("Checking heart rate.")
+                    .setSmallIcon(R.drawable.ic_launcher)
+                    .setOngoing(true)
+                    .addAction(action)
+                    .extend(new Notification.WearableExtender()
+                        .setBackground(BitmapFactory.decodeResource(getResources(), R.drawable.ic_notification_back))
+                        .setHintHideIcon(true)
+                        );
+
+
+            // Build the notification and show it
+            Log.d("HeartSync", "Showing monitoring notification");
+
+            notificationManager.notify(1, notificationBuilder.build());
+
+        } else {
             //Hide the notification
             Log.d("HeartSync", "Cancelling monitoring notification");
             notificationManager.cancel(1);
@@ -285,9 +310,21 @@ public class HeartRateMeasurementService extends Service implements SensorEventL
         super.onDestroy();
     }
 
+    private long mLastMeasure = 0;
+
     @Override
     public void onSensorChanged(SensorEvent sensorEvent) {
         if (sensorEvent.sensor.getType() == Sensor.TYPE_HEART_RATE) {
+
+            //limit the rate of inputs to save battery, limit phone comm, and limit google fit blasting
+            long now = new Date().getTime();
+            if (now < mLastMeasure + 1000) { //1 second debounce
+                //ignore this measurement because it's coming too quickly.
+                return;
+            } else {
+                mLastMeasure = now;
+            }
+
             int heartRate = (int) sensorEvent.values[0];
 
             Log.d("HeartSync", "Sensor measurement: " + heartRate);
@@ -340,7 +377,6 @@ public class HeartRateMeasurementService extends Service implements SensorEventL
                 }).start();
             } else {
                 //Zero reading.  Check if it's time to give up yet. (not in continual mode)
-                long now = new Date().getTime();
                 boolean giveUpOnTime = now - mStartTime > 60000;
                 if (mCurrentMode == MODE_NONE || (mCurrentMode == MODE_ONE) && giveUpOnTime) {
 
@@ -400,26 +436,6 @@ public class HeartRateMeasurementService extends Service implements SensorEventL
     private void sendHeartRateToUi(int heartRate) {
 
         sendToUi(TYPE_HEARTRATE, heartRate);
-
-        //Show the persistent notification
-        Intent notificationIntent = new Intent(this, MainActivity.class);
-        PendingIntent notificationPendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
-        // Create the ongoing notification
-        Notification.Builder notificationBuilder = new Notification.Builder(this)
-                .setContentTitle(heartRate + " bpm")
-                .setContentText("HeartSync is checking your heart rate.")
-                .setSmallIcon(R.drawable.ic_launcher)
-                .setLargeIcon(BitmapFactory.decodeResource(getResources(), R.drawable.ic_launcher))
-                .setOngoing(true)
-                .extend(new Notification.WearableExtender()
-                        .setDisplayIntent(notificationPendingIntent));
-
-        // Build the notification and show it
-        Log.d("HeartSync", "Showing monitoring notification");
-
-        NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-        notificationManager.notify(1, notificationBuilder.build());
-
     }
 
     private void sendAccuracyToUi(int accuracy) {
