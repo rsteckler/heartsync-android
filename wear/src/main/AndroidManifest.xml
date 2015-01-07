@@ -13,11 +13,14 @@
         android:theme="@android:style/Theme.DeviceDefault" >
         <activity
             android:name=".MainActivity"
-            android:label="Tracking my heart rate" >
+            android:label="HeartSync" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="vnd.google.fitness.VIEW" />
+                <data android:mimeType="vnd.google.fitness.data_type/com.google.heart_rate.bpm" />
             </intent-filter>
         </activity>
 

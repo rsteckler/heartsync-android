@@ -8,13 +8,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
-import android.os.Handler;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.wearable.view.WatchViewStub;
-import android.util.Log;
 import android.view.View;
 import android.view.animation.AccelerateDecelerateInterpolator;
-import android.view.animation.LinearInterpolator;
 import android.widget.ImageButton;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -23,9 +20,9 @@ public class MainActivity extends Activity  {
 
     private TextView mRateText;
     private TextView mAccuracyText;
-
-    private boolean mStarted = false;
-
+    private BeatAnimationListener mBeatAnimationListener;
+    private ValueAnimator mBeatAnimation;
+    private ProgressBar mBeatProgress;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,16 +37,16 @@ public class MainActivity extends Activity  {
 
                 LocalBroadcastManager.getInstance(MainActivity.this).registerReceiver(mHeartRateReceiver, new IntentFilter("heartRateUpdate"));
 
-                final ProgressBar progressBeat = (ProgressBar)stub.findViewById(R.id.progressBeat);
-                progressBeat.setProgress(0);
+                mBeatProgress = (ProgressBar)stub.findViewById(R.id.progressBeat);
+                mBeatProgress.setProgress(0);
 
-                final ValueAnimator progressAnimation = ValueAnimator.ofInt(0, 100);
-                final BeatAnimationListener welcomeListener = new BeatAnimationListener(progressBeat, progressAnimation);
-                progressAnimation.addListener(welcomeListener);
-                progressAnimation.addUpdateListener(welcomeListener);
-                progressAnimation.setDuration(900);
-                progressAnimation.setStartDelay(100); //Create a small gap between each step, so they look discrete
-                progressAnimation.setInterpolator(new AccelerateDecelerateInterpolator());
+                mBeatAnimation = ValueAnimator.ofInt(0, 100);
+                mBeatAnimationListener = new BeatAnimationListener(mBeatProgress, mBeatAnimation);
+                mBeatAnimation.addListener(mBeatAnimationListener);
+                mBeatAnimation.addUpdateListener(mBeatAnimationListener);
+                mBeatAnimation.setDuration(900);
+                mBeatAnimation.setStartDelay(100); //Create a small gap between each step, so they look discrete
+                mBeatAnimation.setInterpolator(new AccelerateDecelerateInterpolator());
 
                 ImageButton startStop = (ImageButton)stub.findViewById(R.id.imageButton);
                 startStop.setOnClickListener(new View.OnClickListener() {
@@ -57,42 +54,19 @@ public class MainActivity extends Activity  {
                     @Override
                     public void onClick(View view) {
 
-                        if (mStarted) {
-                            //Stop
+                        boolean currentlyMeasuring = HeartRateMeasurementService.getMeasuring();
                             Intent service = new Intent(MainActivity.this, HeartRateMeasurementService.class);
-                            service.putExtra("mode", HeartRateMeasurementService.MODE_NONE);
+                            service.putExtra("mode", currentlyMeasuring ? HeartRateMeasurementService.MODE_NONE : HeartRateMeasurementService.MODE_CONTINUAL);
                             startService(service);
-
-                            welcomeListener.mKeepRunning = false;
-
-                            mStarted = false;
-
-                        } else {
-                            //Start
-                            // This is the Intent to deliver to our service.
-                            Intent service = new Intent(MainActivity.this, HeartRateMeasurementService.class);
-                            service.putExtra("mode", HeartRateMeasurementService.MODE_CONTINUAL);
-                            startService(service);
-
-                            progressBeat.setProgress(0);
-                            welcomeListener.mKeepRunning = true;
-
-                            //Start the animations.
-                            progressAnimation.start();
-
-                            mStarted = true;
-                        }
                     }
                 });
 
-                if (HeartRateMeasurementService.mMeasuring) {
-                    progressBeat.setProgress(0);
-                    welcomeListener.mKeepRunning = true;
+                if (HeartRateMeasurementService.getMeasuring()) {
+                    mBeatProgress.setProgress(0);
+                    mBeatAnimationListener.mKeepRunning = true;
 
                     //Start the animations.
-                    progressAnimation.start();
-
-                    mStarted = true;
+                    mBeatAnimation.start();
                 }
 
             }
@@ -175,14 +149,31 @@ public class MainActivity extends Activity  {
                 });
 
             }
+            if (intent.hasExtra("monitoring")) {
+                boolean monitoring = intent.getBooleanExtra("monitoring", false);
+                if (!monitoring) {
+                    //Stop the animation
+                    mBeatAnimationListener.mKeepRunning = false;
+
+                } else {
+                    //Start the animation
+                    mBeatProgress.setProgress(0);
+                    mBeatAnimationListener.mKeepRunning = true;
+
+                    //Start the animations.
+                    mBeatAnimation.start();
+                }
+            }
+
         }
     };
 
     @Override
     protected void onDestroy() {
-        Intent service = new Intent(this, HeartRateMeasurementService.class);
-        service.putExtra("mode", HeartRateMeasurementService.MODE_NONE);
-        startService(service);
+//Why did I have this in here?
+//        Intent service = new Intent(this, HeartRateMeasurementService.class);
+//        service.putExtra("mode", HeartRateMeasurementService.MODE_NONE);
+//        startService(service);
 
         super.onDestroy();
     }

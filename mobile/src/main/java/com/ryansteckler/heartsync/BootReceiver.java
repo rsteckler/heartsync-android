@@ -6,6 +6,13 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.os.SystemClock;
+
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.GregorianCalendar;
 
 /**
  * Created by rsteckler on 1/2/15.
@@ -43,7 +50,15 @@ public class BootReceiver extends BroadcastReceiver {
                 alarmPendingIntent = PendingIntent.getBroadcast(context, 0, alarmIntent, PendingIntent.FLAG_CANCEL_CURRENT);
 
                 AlarmManager alarmManager = (AlarmManager)context.getSystemService(Context.ALARM_SERVICE);
-                alarmManager.setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, interval, interval, alarmPendingIntent);
+                alarmManager.setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + interval, interval, alarmPendingIntent);
+
+                Date nextUpdateDate = new Date(System.currentTimeMillis() + interval);
+
+                String nextUpdate = DateFormat.getDateTimeInstance().format(nextUpdateDate);
+
+                SharedPreferences.Editor edit = prefs.edit();
+                edit.putString("next_update", nextUpdate);
+                edit.apply();
 
             }
 
