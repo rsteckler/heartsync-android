@@ -62,7 +62,7 @@ public class MainActivity extends Activity {
     private ArrayAdapter<CharSequence> mFrequencySpinnerAdapter;
 
     IabHelper mBillingHelper;
-    private boolean mIsPremium = true;
+    private boolean mIsPremium = false;
     /**
      *  Track whether an authorization activity is stacking over the current activity, i.e. when
      *  a known auth error is being resolved, such as showing the account chooser or presenting a
