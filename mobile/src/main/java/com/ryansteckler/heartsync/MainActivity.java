@@ -84,6 +84,8 @@ public class MainActivity extends Activity {
 
         mPreferences = getSharedPreferences("com.ryansteckler.heartsync" + "_preferences", Context.MODE_PRIVATE);
 
+        setupControls();
+
         if (isFirstRun()) {
             //Do first run stuff
             //Set initial prefs
@@ -109,8 +111,6 @@ public class MainActivity extends Activity {
         }
 
         setupBilling();
-
-        setupControls();
 
         LocalBroadcastManager.getInstance(this).registerReceiver(mHeartRateReceiver, new IntentFilter("heartRateUpdate"));
 
