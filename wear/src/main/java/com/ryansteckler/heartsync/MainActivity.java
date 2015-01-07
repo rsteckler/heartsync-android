@@ -170,9 +170,10 @@ public class MainActivity extends Activity  {
 
     @Override
     protected void onDestroy() {
-        Intent service = new Intent(this, HeartRateMeasurementService.class);
-        service.putExtra("mode", HeartRateMeasurementService.MODE_NONE);
-        startService(service);
+//Why did I have this in here?
+//        Intent service = new Intent(this, HeartRateMeasurementService.class);
+//        service.putExtra("mode", HeartRateMeasurementService.MODE_NONE);
+//        startService(service);
 
         super.onDestroy();
     }
