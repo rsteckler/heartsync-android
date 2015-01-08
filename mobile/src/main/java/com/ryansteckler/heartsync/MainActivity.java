@@ -64,7 +64,7 @@ public class MainActivity extends Activity {
     private ArrayAdapter<CharSequence> mFrequencySpinnerAdapter;
 
     IabHelper mBillingHelper;
-    private boolean mIsPremium = true;
+    private boolean mIsPremium = false;
     /**
      *  Track whether an authorization activity is stacking over the current activity, i.e. when
      *  a known auth error is being resolved, such as showing the account chooser or presenting a
@@ -76,6 +76,12 @@ public class MainActivity extends Activity {
     private SharedPreferences mPreferences;
     private ValueAnimator mProgressAnimation;
     private BeatAnimationListener mBeatAnimationListener;
+
+
+    public final static int TYPE_HEARTRATE = 0;
+    public final static int TYPE_ACCURACY = 1;
+    public final static int TYPE_MONITORING = 2;
+    public final static int TYPE_NEXT_UPDATE = 3;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -332,6 +338,15 @@ public class MainActivity extends Activity {
                     mBeatAnimationListener.mKeepRunning = false;
                 }
 
+            }
+            if (intent.hasExtra("nextUpdate")) {
+                final String nextUpdate = intent.getStringExtra("nextUpdate");
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        mNextUpdateTextView.setText("Next update: " + nextUpdate != null ? nextUpdate : "unscheduled");
+                    }
+                });
             }
         }
     };
