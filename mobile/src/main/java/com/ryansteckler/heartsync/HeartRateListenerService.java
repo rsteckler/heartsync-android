@@ -14,16 +14,11 @@ import com.google.android.gms.wearable.WearableListenerService;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.prefs.Preferences;
 
 /**
  * Created by rsteckler on 1/2/15.
  */
 public class HeartRateListenerService extends WearableListenerService {
-
-    private final static int TYPE_HEARTRATE = 0;
-    private final static int TYPE_ACCURACY = 1;
-    private final static int TYPE_MONITORING = 2;
 
     @Override
     public void onCreate() {
@@ -66,23 +61,23 @@ public class HeartRateListenerService extends WearableListenerService {
     }
 
     private void sendHeartRateToUi(int heartRate) {
-        sendToUi(TYPE_HEARTRATE, heartRate);
+        sendToUi(MainActivity.TYPE_HEARTRATE, heartRate);
     }
 
     private void sendAccuracyToUi(int accuracy) {
-        sendToUi(TYPE_ACCURACY, accuracy);
+        sendToUi(MainActivity.TYPE_ACCURACY, accuracy);
     }
 
     private void sendMonitoringToUi(boolean monitoring) {
-        sendToUi(TYPE_MONITORING, monitoring);
+        sendToUi(MainActivity.TYPE_MONITORING, monitoring);
     }
 
     private void sendToUi(int type, int value) {
         Intent intent = new Intent("heartRateUpdate");
         // You can also include some extra data.
-        if (type == TYPE_HEARTRATE) {
+        if (type == MainActivity.TYPE_HEARTRATE) {
             intent.putExtra("heartRate", value);
-        } else if (type == TYPE_ACCURACY) {
+        } else if (type == MainActivity.TYPE_ACCURACY) {
             intent.putExtra("accuracy", value);
         }
 
@@ -92,7 +87,7 @@ public class HeartRateListenerService extends WearableListenerService {
     private void sendToUi(int type, boolean value) {
         Intent intent = new Intent("heartRateUpdate");
         // You can also include some extra data.
-        if (type == TYPE_MONITORING) {
+        if (type == MainActivity.TYPE_MONITORING) {
             intent.putExtra("monitoring", value);
         }
 

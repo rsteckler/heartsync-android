@@ -181,16 +181,29 @@ public class HeartRateMeasurementService extends Service implements SensorEventL
         //This logic could be collapsed, but leaving it like this for clarity.
         Log.d("HeartSync", "MeasurementService current mode: " + mCurrentMode);
 
-        if (mCurrentMode == MODE_NONE && requestedMode == MODE_ONE) {
+        if (canMeasure() || requestedMode == MODE_NONE) {
+            Log.d("HeartSync", "Allowing mode change.");
+        } else {
+            Log.d("HeartSync", "Not allowing mode change. (Are you chargin, perhaps?)");
+            return START_NOT_STICKY;
+        }
+
+            if (mCurrentMode == MODE_NONE && requestedMode == MODE_ONE) {
             mCurrentMode = MODE_ONE;
         } else if (mCurrentMode == MODE_ONE && requestedMode == MODE_CONTINUAL) {
             mCurrentMode = MODE_CONTINUAL;
+            //Set the notification
+            setContinualNotification();
         } else if (mCurrentMode == MODE_NONE && requestedMode == MODE_CONTINUAL) {
             mCurrentMode = MODE_CONTINUAL;
+            //Set the notification
+            setContinualNotification();
         } else if (mCurrentMode == MODE_ONE && requestedMode == MODE_NONE) {
             mCurrentMode = MODE_NONE;
+            cancelContinualNotification();
         } else if (mCurrentMode == MODE_CONTINUAL && requestedMode == MODE_NONE) {
             mCurrentMode = MODE_NONE;
+            cancelContinualNotification();
         }
 
         Log.d("HeartSync", "MeasurementService new mode: " + mCurrentMode);
@@ -198,11 +211,9 @@ public class HeartRateMeasurementService extends Service implements SensorEventL
         // For each start request, send a message to start a job and deliver the
         // start ID so we know which request we're stopping when we finish the job
         if (!mMeasuring && requestedMode != MODE_NONE) {
-            if (canMeasure()) {
-                Message msg = mServiceHandler.obtainMessage();
-                msg.arg1 = startId;
-                mServiceHandler.sendMessage(msg);
-            }
+            Message msg = mServiceHandler.obtainMessage();
+            msg.arg1 = startId;
+            mServiceHandler.sendMessage(msg);
         } else {
             Log.d("HeartSync", "We're already measuring.");
         }
@@ -235,38 +246,42 @@ public class HeartRateMeasurementService extends Service implements SensorEventL
         Log.d("HeartSync", "Monitoring on the watch has: " + (mMeasuring ? "started" : "stopped"));
         sendMonitoringToUi(mMeasuring);
 
+    }
+
+    private void setContinualNotification() {
         NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
-        if (mMeasuring) {
-            //Show the persistent notification
-            Intent notificationIntent = new Intent(this, MainActivity.class);
-            PendingIntent notificationPendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
-            // Create the ongoing notification
-            Notification.Action action = new Notification.Action.Builder(R.drawable.ic_full_open, "Open", notificationPendingIntent)
-                    .build();
+        //Show the persistent notification
+        Intent notificationIntent = new Intent(this, MainActivity.class);
+        PendingIntent notificationPendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+        // Create the ongoing notification
+        Notification.Action action = new Notification.Action.Builder(R.drawable.ic_full_open, "Open", notificationPendingIntent)
+                .build();
 
-            Notification.Builder notificationBuilder = new Notification.Builder(this)
-                    .setContentTitle("HeartSync")
-                    .setContentText("Checking heart rate.")
-                    .setSmallIcon(R.drawable.ic_launcher)
-                    .setOngoing(true)
-                    .addAction(action)
-                    .extend(new Notification.WearableExtender()
-                        .setBackground(BitmapFactory.decodeResource(getResources(), R.drawable.ic_notification_back))
-                        .setHintHideIcon(true)
-                        );
+        Notification.Builder notificationBuilder = new Notification.Builder(this)
+                .setContentTitle("HeartSync")
+                .setContentText("Checking heart rate.")
+                .setSmallIcon(R.drawable.ic_launcher)
+                .setOngoing(true)
+                .addAction(action)
+                .extend(new Notification.WearableExtender()
+                                .setBackground(BitmapFactory.decodeResource(getResources(), R.drawable.ic_notification_back))
+                                .setHintHideIcon(true)
+                );
 
 
-            // Build the notification and show it
-            Log.d("HeartSync", "Showing monitoring notification");
+        // Build the notification and show it
+        Log.d("HeartSync", "Showing monitoring notification");
 
-            notificationManager.notify(1, notificationBuilder.build());
+        notificationManager.notify(1, notificationBuilder.build());
 
-        } else {
-            //Hide the notification
-            Log.d("HeartSync", "Cancelling monitoring notification");
-            notificationManager.cancel(1);
-        }
+    }
+
+    private void cancelContinualNotification() {
+        //Hide the notification
+        Log.d("HeartSync", "Cancelling monitoring notification");
+        NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        notificationManager.cancel(1);
     }
 
     private void sendMonitoringToUi(boolean monitoring) {
@@ -331,9 +346,10 @@ public class HeartRateMeasurementService extends Service implements SensorEventL
 
             //Update UI
             Log.d("HeartSync", "Updating UI with heartrate: " + heartRate);
-            sendHeartRateToUi(heartRate);
 
             if (heartRate != 0) {
+
+                sendHeartRateToUi(heartRate);
 
                 final byte[] bytes = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(heartRate).array();
 
@@ -371,6 +387,7 @@ public class HeartRateMeasurementService extends Service implements SensorEventL
                             }
 
                             Log.d("HeartSync", "Finished measurement.");
+                            mCurrentMode = MODE_NONE;
                             setMeasuring(false);
                         }
                     }
@@ -399,6 +416,7 @@ public class HeartRateMeasurementService extends Service implements SensorEventL
                     }
 
                     Log.d("HeartSync", "Finished measurement.");
+                    mCurrentMode = MODE_NONE;
                     setMeasuring(false);
                 }
             }
