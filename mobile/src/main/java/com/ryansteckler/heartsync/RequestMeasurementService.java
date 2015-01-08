@@ -12,6 +12,9 @@ import com.google.android.gms.wearable.Node;
 import com.google.android.gms.wearable.NodeApi;
 import com.google.android.gms.wearable.Wearable;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+
 /**
  * Created by rsteckler on 1/3/15.
  */
@@ -40,8 +43,15 @@ public class RequestMeasurementService extends IntentService {
                             @Override
                             public void run() {
                                 NodeApi.GetConnectedNodesResult nodes = Wearable.NodeApi.getConnectedNodes(mGoogleApiClient).await();
+                                byte[] byteContinual = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(0).array();;
+                                if (intent.hasExtra("continual")) {
+                                    if (intent.getBooleanExtra("continual", false)){
+                                        byteContinual = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(1).array();
+                                    }
+                                }
+
                                 for (Node node : nodes.getNodes()) {
-                                    MessageApi.SendMessageResult result = Wearable.MessageApi.sendMessage(mGoogleApiClient, node.getId(), "/measureNow", null).await();
+                                    MessageApi.SendMessageResult result = Wearable.MessageApi.sendMessage(mGoogleApiClient, node.getId(), "/measureNow", byteContinual).await();
                                     if (!result.getStatus().isSuccess()) {
                                         Log.e("HeartSync", "RequestMeasurementService failed to send message to watch: " + result.getStatus());
                                     }

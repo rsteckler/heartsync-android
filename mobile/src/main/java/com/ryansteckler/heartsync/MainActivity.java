@@ -58,11 +58,13 @@ public class MainActivity extends Activity {
     private Spinner mFrequencySpinner;
     private Switch mAutoUpdateSwitch;
     private ProgressBar mBeatProgress;
-    private ImageButton mMeasureNowButton;
+    private ImageButton mToggleWorkoutModeButton;
+    private Button mDonateButton;
+    private TextView mCheckNowButton;
     private ArrayAdapter<CharSequence> mFrequencySpinnerAdapter;
 
     IabHelper mBillingHelper;
-    private boolean mIsPremium = false;
+    private boolean mIsPremium = true;
     /**
      *  Track whether an authorization activity is stacking over the current activity, i.e. when
      *  a known auth error is being resolved, such as showing the account chooser or presenting a
@@ -71,9 +73,7 @@ public class MainActivity extends Activity {
     private static final String AUTH_PENDING = "auth_state_pending";
     private boolean authInProgress = false;
     private static final int REQUEST_OAUTH = 1;
-    private Button mDonateButton;
     private SharedPreferences mPreferences;
-    private TextView mCheckNowButton;
     private ValueAnimator mProgressAnimation;
     private BeatAnimationListener mBeatAnimationListener;
 
@@ -137,7 +137,7 @@ public class MainActivity extends Activity {
         mAutoUpdateSwitch = (Switch)findViewById(R.id.switchAutoUpdate);
         mCheckNowButton = (TextView)findViewById(R.id.textCheckNow);
         mBeatProgress = (ProgressBar)findViewById(R.id.progressBeat);
-        mMeasureNowButton = (ImageButton)findViewById(R.id.measureNowButton);
+        mToggleWorkoutModeButton = (ImageButton)findViewById(R.id.measureNowButton);
 
         //Setup the spinner adapter.
         // Create an ArrayAdapter using the string array and a default spinner layout
@@ -214,6 +214,17 @@ public class MainActivity extends Activity {
 
             @Override
             public void onNothingSelected(AdapterView<?> adapterView) {
+                Intent service = new Intent(MainActivity.this, RequestMeasurementService.class);
+                service.putExtra("continual", true);
+                startService(service);
+
+            }
+        });
+
+        mToggleWorkoutModeButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+
 
             }
         });
@@ -336,22 +347,7 @@ public class MainActivity extends Activity {
 
         if (b) {
 
-            if (frequency == 0) {
-                interval = 5 * 60000;
-            } else if (frequency == 1) {
-                interval = AlarmManager.INTERVAL_FIFTEEN_MINUTES;
-            } else if (frequency == 2) {
-                interval = AlarmManager.INTERVAL_HALF_HOUR;
-            } else if (frequency == 3) {
-                interval = AlarmManager.INTERVAL_HOUR;
-            } else if (frequency == 4) {
-                interval = AlarmManager.INTERVAL_HOUR * 4;
-            } else if (frequency == 5) {
-                interval = AlarmManager.INTERVAL_HALF_DAY;
-            } else if (frequency == 6) {
-                interval = AlarmManager.INTERVAL_DAY;
-            }
-
+            interval = frequencyIdToInterval(frequency);
 
             alarmManager.setInexactRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + interval, interval, alarmPendingIntent);
 
@@ -370,6 +366,26 @@ public class MainActivity extends Activity {
 
         mNextUpdateTextView.setText("Next update: " + nextUpdate);
 
+    }
+
+    public static long frequencyIdToInterval(int frequency) {
+        long interval = 0;
+        if (frequency == 0) {
+            interval = 5 * 60000;
+        } else if (frequency == 1) {
+            interval = AlarmManager.INTERVAL_FIFTEEN_MINUTES;
+        } else if (frequency == 2) {
+            interval = AlarmManager.INTERVAL_HALF_HOUR;
+        } else if (frequency == 3) {
+            interval = AlarmManager.INTERVAL_HOUR;
+        } else if (frequency == 4) {
+            interval = AlarmManager.INTERVAL_HOUR * 4;
+        } else if (frequency == 5) {
+            interval = AlarmManager.INTERVAL_HALF_DAY;
+        } else if (frequency == 6) {
+            interval = AlarmManager.INTERVAL_DAY;
+        }
+        return interval;
     }
 
     private void setupBilling() {

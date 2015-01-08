@@ -121,7 +121,7 @@ public class MainActivity extends Activity  {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        mRateText.setText(String.valueOf(heartRate));
+                        mRateText.setText(String.valueOf(heartRate) + " bpm");
                     }
                 });
             }
@@ -154,6 +154,7 @@ public class MainActivity extends Activity  {
                 if (!monitoring) {
                     //Stop the animation
                     mBeatAnimationListener.mKeepRunning = false;
+                    mRateText.setText("Not Measuring");
 
                 } else {
                     //Start the animation
@@ -162,6 +163,8 @@ public class MainActivity extends Activity  {
 
                     //Start the animations.
                     mBeatAnimation.start();
+                    mRateText.setText("Measuring. Please wait...");
+
                 }
             }
 
