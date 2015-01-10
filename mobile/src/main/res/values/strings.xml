@@ -5,7 +5,6 @@
     <string name="hello_world">Hello world!</string>
     <string name="action_settings">Settings</string>
 
-
     <string-array name="frequency_array">
         <item>5 minutes</item>
         <item>15 minutes</item>
@@ -15,4 +14,7 @@
         <item>12 hours</item>
         <item>1 day</item>
     </string-array>
+
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+
 </resources>

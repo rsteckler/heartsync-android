@@ -16,6 +16,8 @@ import android.widget.ImageButton;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
+import fr.nicolaspomepuy.androidwearcrashreport.wear.CrashReporter;
+
 public class MainActivity extends Activity  {
 
     private TextView mRateText;
@@ -28,6 +30,8 @@ public class MainActivity extends Activity  {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        CrashReporter.getInstance(this).start();
+
         final WatchViewStub stub = (WatchViewStub) findViewById(R.id.watch_view_stub);
         stub.setOnLayoutInflatedListener(new WatchViewStub.OnLayoutInflatedListener() {
             @Override

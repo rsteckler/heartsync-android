@@ -1,1 +1,2 @@
-include ':mobile', ':wear'
+include ':mobile', ':wear', ':hellocharts-library'
+project(':hellocharts-library').projectDir = new File('hellocharts-android/hellocharts-library')
