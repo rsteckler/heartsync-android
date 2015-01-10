@@ -14,6 +14,8 @@ import com.google.android.gms.wearable.WearableListenerService;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.text.DateFormat;
+import java.util.Date;
 
 /**
  * Created by rsteckler on 1/2/15.
@@ -46,6 +48,7 @@ public class HeartRateListenerService extends WearableListenerService {
             sendHeartRateToUi(heartRate);
 
             Intent service = new Intent(this, UpdateFitService.class);
+            service.putExtra("requestType", UpdateFitService.TYPE_UPDATE_HEART_RATE);
             service.putExtra("heartRate", heartRate);
             startService(service);
 
@@ -61,23 +64,44 @@ public class HeartRateListenerService extends WearableListenerService {
     }
 
     private void sendHeartRateToUi(int heartRate) {
-        sendToUi(MainActivity.TYPE_HEARTRATE, heartRate);
+
+        //Also write pref
+        SharedPreferences preferences = this.getSharedPreferences("com.ryansteckler.heartsync" + "_preferences", Context.MODE_PRIVATE);
+
+        Date lastUpdateDate = new Date(System.currentTimeMillis());
+        String lastUpdate = DateFormat.getDateTimeInstance().format(lastUpdateDate);
+
+        if (heartRate > -1) {
+            lastUpdate += " - " + heartRate + " bpm";
+            sendToUi(MainFragment.TYPE_HEARTRATE, heartRate);
+
+        } else {
+            lastUpdate += " - unreadable";
+        }
+
+
+        SharedPreferences.Editor edit = preferences.edit();
+        edit.putString(MainFragment.PREF_LAST_UPDATE, lastUpdate);
+        edit.apply();
+
+        sendToUi(MainFragment.TYPE_LAST_UPDATE, lastUpdate);
+
     }
 
     private void sendAccuracyToUi(int accuracy) {
-        sendToUi(MainActivity.TYPE_ACCURACY, accuracy);
+        sendToUi(MainFragment.TYPE_ACCURACY, accuracy);
     }
 
     private void sendMonitoringToUi(boolean monitoring) {
-        sendToUi(MainActivity.TYPE_MONITORING, monitoring);
+        sendToUi(MainFragment.TYPE_MONITORING, monitoring);
     }
 
     private void sendToUi(int type, int value) {
         Intent intent = new Intent("heartRateUpdate");
         // You can also include some extra data.
-        if (type == MainActivity.TYPE_HEARTRATE) {
+        if (type == MainFragment.TYPE_HEARTRATE) {
             intent.putExtra("heartRate", value);
-        } else if (type == MainActivity.TYPE_ACCURACY) {
+        } else if (type == MainFragment.TYPE_ACCURACY) {
             intent.putExtra("accuracy", value);
         }
 
@@ -87,8 +111,18 @@ public class HeartRateListenerService extends WearableListenerService {
     private void sendToUi(int type, boolean value) {
         Intent intent = new Intent("heartRateUpdate");
         // You can also include some extra data.
-        if (type == MainActivity.TYPE_MONITORING) {
+        if (type == MainFragment.TYPE_MONITORING) {
             intent.putExtra("monitoring", value);
+        }
+
+        LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
+    }
+
+    private void sendToUi(int type, String value) {
+        Intent intent = new Intent("heartRateUpdate");
+        // You can also include some extra data.
+        if (type == MainFragment.TYPE_LAST_UPDATE) {
+            intent.putExtra("lastUpdate", value);
         }
 
         LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
@@ -114,7 +148,7 @@ public class HeartRateListenerService extends WearableListenerService {
                     //Store this so the UI can check offline.
                     SharedPreferences prefs = getSharedPreferences("com.ryansteckler.heartsync" + "_preferences", Context.MODE_PRIVATE);
                     SharedPreferences.Editor edit = prefs.edit();
-                    edit.putBoolean("monitoring_now", monitoring);
+                    edit.putBoolean(MainFragment.PREF_MONITORING_NOW, monitoring);
                     edit.apply();
 
                     //Set the ui appropriately.

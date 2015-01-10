@@ -9,8 +9,8 @@ android {
         applicationId "com.ryansteckler.heartsync"
         minSdkVersion 20
         targetSdkVersion 21
-        versionCode 8
-        versionName "1.0.6"
+         versionCode 9
+         versionName "1.0.7"
     }
     buildTypes {
         release {
@@ -24,4 +24,5 @@ dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
     compile 'com.google.android.support:wearable:1.1.0'
     compile 'com.google.android.gms:play-services-wearable:6.5.87'
+    compile 'fr.nicolaspomepuy.androidwearcrashreport:crashreport-wear:0.4@aar'
 }

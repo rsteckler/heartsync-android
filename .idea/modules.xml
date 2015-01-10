@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/heartsync.iml" filepath="$PROJECT_DIR$/heartsync.iml" />
+      <module fileurl="file://$PROJECT_DIR$/hellocharts-android/hellocharts-library/hellocharts-library.iml" filepath="$PROJECT_DIR$/hellocharts-android/hellocharts-library/hellocharts-library.iml" />
       <module fileurl="file://$PROJECT_DIR$/mobile/mobile.iml" filepath="$PROJECT_DIR$/mobile/mobile.iml" />
       <module fileurl="file://$PROJECT_DIR$/wear/wear.iml" filepath="$PROJECT_DIR$/wear/wear.iml" />
     </modules>
