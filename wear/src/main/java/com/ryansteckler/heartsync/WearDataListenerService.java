@@ -9,6 +9,8 @@ import com.google.android.gms.wearable.WearableListenerService;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
+import fr.nicolaspomepuy.androidwearcrashreport.wear.CrashReporter;
+
 /**
  * Created by rsteckler on 1/2/15.
  */
@@ -18,7 +20,7 @@ public class WearDataListenerService extends WearableListenerService  {
     @Override
     public void onCreate() {
         super.onCreate();
-
+        CrashReporter.getInstance(this).start();
         Log.d("HeartSync", "Creating WearDataListenerService.");
     }
 

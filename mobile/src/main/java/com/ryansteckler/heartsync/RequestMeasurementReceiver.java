@@ -24,19 +24,19 @@ public class RequestMeasurementReceiver extends WakefulBroadcastReceiver {
         Log.d("HeartSync", "Calculating next alarm time.");
         SharedPreferences preferences = context.getSharedPreferences("com.ryansteckler.heartsync" + "_preferences", Context.MODE_PRIVATE);
         String nextUpdate = "unscheduled";
-        if (preferences.getBoolean(MainActivity.PREF_ENABLE_AUTO_UPDATE, true)) {
-            int frequencyId = preferences.getInt(MainActivity.PREF_UPDATE_FREQUENCY, 0);
-            long interval = MainActivity.frequencyIdToInterval(frequencyId);
+        if (preferences.getBoolean(MainFragment.PREF_ENABLE_AUTO_UPDATE, true)) {
+            int frequencyId = preferences.getInt(MainFragment.PREF_UPDATE_FREQUENCY, 0);
+            long interval = MainFragment.frequencyIdToInterval(frequencyId);
 
             Date nextUpdateDate = new Date(System.currentTimeMillis() + interval);
             nextUpdate = DateFormat.getDateTimeInstance().format(nextUpdateDate);
         }
 
         SharedPreferences.Editor edit = preferences.edit();
-        edit.putString(MainActivity.PREF_NEXT_UPDATE, nextUpdate);
+        edit.putString(MainFragment.PREF_NEXT_UPDATE, nextUpdate);
         edit.apply();
 
-        sendToUi(context, MainActivity.TYPE_NEXT_UPDATE, nextUpdate);
+        sendToUi(context, MainFragment.TYPE_NEXT_UPDATE, nextUpdate);
 
     // This is the Intent to deliver to our service.
         Intent service = new Intent(context, RequestMeasurementService.class);
@@ -49,7 +49,7 @@ public class RequestMeasurementReceiver extends WakefulBroadcastReceiver {
     private void sendToUi(Context context, int type, String value) {
         Intent intent = new Intent("heartRateUpdate");
         // You can also include some extra data.
-        if (type == MainActivity.TYPE_NEXT_UPDATE) {
+        if (type == MainFragment.TYPE_NEXT_UPDATE) {
             intent.putExtra("nextUpdate", value);
         }
 

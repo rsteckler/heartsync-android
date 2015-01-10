@@ -11,13 +11,22 @@ import com.google.android.gms.common.Scopes;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.Scope;
 import com.google.android.gms.fitness.Fitness;
+import com.google.android.gms.fitness.data.DataPoint;
 import com.google.android.gms.fitness.data.DataSet;
 import com.google.android.gms.fitness.data.DataSource;
 import com.google.android.gms.fitness.data.DataType;
+import com.google.android.gms.fitness.data.Field;
+import com.google.android.gms.fitness.request.DataReadRequest;
+import com.google.android.gms.fitness.result.DataReadResult;
 
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
+
+import lecho.lib.hellocharts.model.PointValue;
 
 /**
  * Created by rsteckler on 1/3/15.
@@ -28,6 +37,10 @@ public class UpdateFitService extends IntentService {
     private int mLastHeartrate = 0;
 
     private boolean mSending = false;
+    private boolean mProcessing = false;
+
+    public static final int TYPE_UPDATE_HEART_RATE = 0;
+    public static final int TYPE_GET_HEART_RATE_DATA = 1;
 
     @Override
     public void onDestroy() {
@@ -53,25 +66,153 @@ public class UpdateFitService extends IntentService {
 
     @Override
     protected void onHandleIntent(Intent intent) {
-        int heartRate = intent.getIntExtra("heartRate", 0);
-        if (heartRate != 0 && heartRate != mLastHeartrate) {
-            mLastHeartrate = heartRate;
+        int type = intent.getIntExtra("requestType", -1);
+        if (type == TYPE_UPDATE_HEART_RATE) {
 
-            Log.d("HeartSync", "Updating Google Fit with heartRate: " + heartRate);
-            mSending = true;
+            int heartRate = intent.getIntExtra("heartRate", 0);
+            if (heartRate != 0 && heartRate != mLastHeartrate) {
+                mLastHeartrate = heartRate;
 
-            Log.d("HeartSync", "Blocking service until fit update completes");
-            while (mSending) {
-                try {
-                    sendHeartRateToFit(heartRate);
-                    Thread.sleep(1000, 0);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+                Log.d("HeartSync", "Updating Google Fit with heartRate: " + heartRate);
+                mSending = true;
+
+                Log.d("HeartSync", "Blocking service until fit update completes");
+                while (mSending) {
+                    try {
+                        if (!mProcessing) {
+                            sendHeartRateToFit(heartRate);
+                        }
+                        Thread.sleep(1000, 0);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
                 }
+                Log.d("HeartSync", "Fit update complete.  Allowing Android to destroy the service.");
             }
-            Log.d("HeartSync", "Fit update complete.  Allowing Android to destroy the service.");
+        } else if (type == TYPE_GET_HEART_RATE_DATA) {
+                Log.d("HeartSync", "Requesting heart rate history from Google Fit");
+                mSending = true;
+
+                Log.d("HeartSync", "Blocking service until fit update completes");
+                while (mSending) {
+                    try {
+                        if (!mProcessing) {
+                            getHeartRateHistory();
+                        }
+                        Thread.sleep(1000, 0);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+                Log.d("HeartSync", "Fit update complete.  Allowing Android to destroy the service.");
+        }
+    }
+
+    private void getHeartRateHistory() {
+        if (mGoogleApiFitnessClient.isConnected()) {
+            mProcessing = true;
+            // Setting a start and end date using a range of 1 year before this moment.
+            Calendar cal = Calendar.getInstance();
+            Date now = new Date();
+            cal.setTime(now);
+            long endTime = cal.getTimeInMillis();
+            cal.add(Calendar.YEAR, -1);
+            long startTime = cal.getTimeInMillis();
+            cal.set(Calendar.HOUR_OF_DAY, 0);
+            cal.set(Calendar.MINUTE, 0);
+            cal.set(Calendar.SECOND, 0);
+
+            final long firstBucketTime = cal.getTimeInMillis();
+            final long bucketInterval = 1000 * 60 * 60;
+
+            final DataReadRequest readRequest = new DataReadRequest.Builder()
+                    .read(DataType.TYPE_HEART_RATE_BPM)
+                    .setTimeRange(startTime, endTime, TimeUnit.MILLISECONDS)
+                    .build();
+
+            // Invoke the History API to fetch the data with the query and await the result of
+            // the read request.
+
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+
+                    DataReadResult dataReadResult =
+                            Fitness.HistoryApi.readData(mGoogleApiFitnessClient, readRequest).await(1, TimeUnit.MINUTES);
+
+                    DataSet heartRateData = dataReadResult.getDataSet(DataType.TYPE_HEART_RATE_BPM);
+
+                    ArrayList<PointValue> points = new ArrayList<PointValue>();
+
+                    long bucketStart = firstBucketTime;
+                    long bucketEnd = firstBucketTime + bucketInterval;
+
+                    float hrMinInBucket = 0;
+                    float hrMaxInBucket = 0;
+                    float hrCountInBucket = 0;
+                    float hrSumInBucket = 0;
+
+                    for (DataPoint dp : heartRateData.getDataPoints()) {
+                        for(Field field : dp.getDataType().getFields()) {
+                            long timestamp = dp.getTimestamp(TimeUnit.MILLISECONDS);
+                            float heartRate = dp.getValue(field).asFloat();
+
+                            boolean foundBucket = false;
+                            while (!foundBucket) {
+                                if (timestamp <= bucketStart) {
+                                    //Add this to the current bucket
+                                    hrSumInBucket += heartRate;
+                                    hrCountInBucket++;
+                                    if (hrMinInBucket == 0) {
+                                        hrMinInBucket = heartRate;
+                                        hrMaxInBucket = heartRate;
+                                    } else if (heartRate > hrMaxInBucket) {
+                                        hrMaxInBucket = heartRate;
+                                    } else if (heartRate < hrMinInBucket) {
+                                        hrMinInBucket = heartRate;
+                                    }
+
+                                    foundBucket = true;
+                                } else {
+                                    //Save this bucket if there's anything in it
+                                    if (hrCountInBucket > 0) {
+                                        float hrAverageInBucket = hrSumInBucket / hrCountInBucket;
+                                        PointValue pv = new PointValue(bucketEnd, (int) hrAverageInBucket);
+                                        String label = "Min: " + hrMinInBucket + " Max: " + hrMaxInBucket + " Avg: " + (int)hrAverageInBucket;
+                                        pv.setLabel(label.toCharArray());
+                                        points.add(pv);
+                                    }
+                                    //Move up to the next bucket.
+                                    bucketStart += bucketInterval;
+                                    bucketEnd += bucketInterval;
+
+                                    hrMinInBucket = 0;
+                                    hrMaxInBucket = 0;
+                                    hrCountInBucket = 0;
+                                    hrSumInBucket = 0;
+
+                                }
+                            }
+
+                        }
+                    }
+
+                    publishHeartRateData(points);
+                    mSending = false;
+                    mProcessing = false;
+                }
+            }).start();
+
         }
 
+    }
+
+    private void publishHeartRateData(ArrayList<PointValue> heartRateData) {
+        Intent intent = new Intent("fitHistory");
+        // You can also include some extra data.
+        intent.putExtra("fitHistory", heartRateData);
+
+        LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
     }
 
 
@@ -114,6 +255,7 @@ public class UpdateFitService extends IntentService {
                                     Log.i("HeartSync", "Google Fit No resolution. Cause: " + result.getErrorCode());
                                 }
                                 mSending = false;
+                                mProcessing = false;
 
                             }
                         }
@@ -123,7 +265,7 @@ public class UpdateFitService extends IntentService {
 
     private void sendHeartRateToFit(int heartRate) {
         if (mGoogleApiFitnessClient.isConnected()) {
-
+            mProcessing = true;
             // Set a start and end time for our data, using a start time of 1 hour before this moment.
             Calendar cal = Calendar.getInstance();
             Date now = new Date();
@@ -169,6 +311,7 @@ public class UpdateFitService extends IntentService {
                     // At this point, the data has been inserted and can be read.
                     Log.i("HeartSync", "Successfully inserted measurement to Google Fit.");
                     mSending = false;
+                    mProcessing = false;
 
                 }
             }).start();

@@ -37,6 +37,8 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Date;
 
+import fr.nicolaspomepuy.androidwearcrashreport.wear.CrashReporter;
+
 /**
  * Created by rsteckler on 1/3/15.
  */
@@ -115,6 +117,8 @@ public class HeartRateMeasurementService extends Service implements SensorEventL
     public void onCreate() {
         super.onCreate();
         Log.d("HeartSync", "Creating HeartRateMeasurementService.");
+        CrashReporter.getInstance(this).start();
+
 
         // Start up the thread running the service.  Note that we create a
         // separate thread because the service normally runs in the process's
@@ -376,6 +380,8 @@ public class HeartRateMeasurementService extends Service implements SensorEventL
                                 mSensorManager.unregisterListener(HeartRateMeasurementService.this);
                             }
 
+                            setMeasuring(false);
+
                             Log.d("HeartSync", "Releasing the wakelock.");
                             if (mWakelock != null) {
                                 if (mWakelock.isHeld()) {
@@ -388,7 +394,6 @@ public class HeartRateMeasurementService extends Service implements SensorEventL
 
                             Log.d("HeartSync", "Finished measurement.");
                             mCurrentMode = MODE_NONE;
-                            setMeasuring(false);
                         }
                     }
                 }).start();
@@ -405,19 +410,39 @@ public class HeartRateMeasurementService extends Service implements SensorEventL
                         mSensorManager.unregisterListener(HeartRateMeasurementService.this);
                     }
 
-                    Log.d("HeartSync", "Releasing the wakelock.");
-                    if (mWakelock != null) {
-                        if (mWakelock.isHeld()) {
-                            Log.d("HeartSync", "Released the wakelock.");
-                            mWakelock.release();
-                        } else {
-                            Log.d("HeartSync", "Wakelock wasn't held.");
-                        }
-                    }
-
-                    Log.d("HeartSync", "Finished measurement.");
-                    mCurrentMode = MODE_NONE;
                     setMeasuring(false);
+
+                    final byte[] bytes = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(-1).array();
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+
+                            NodeApi.GetConnectedNodesResult nodes = Wearable.NodeApi.getConnectedNodes(mGoogleApiClient).await();
+                            for (Node node : nodes.getNodes()) {
+                                MessageApi.SendMessageResult result = Wearable.MessageApi.sendMessage(mGoogleApiClient, node.getId(), "/heartrate", bytes).await();
+                                if (!result.getStatus().isSuccess()) {
+                                    Log.e("HeartSync", "Failed to update node: " + node.getDisplayName() + " with error: " + result.getStatus());
+                                } else {
+                                    Log.d("HeartSync", "Successfully updated node: " + node.getDisplayName());
+                                }
+                            }
+
+                            Log.d("HeartSync", "Releasing the wakelock.");
+                            if (mWakelock != null) {
+                                if (mWakelock.isHeld()) {
+                                    Log.d("HeartSync", "Released the wakelock.");
+                                    mWakelock.release();
+                                } else {
+                                    Log.d("HeartSync", "Wakelock wasn't held.");
+                                }
+                            }
+
+                            Log.d("HeartSync", "Finished measurement.");
+                            mCurrentMode = MODE_NONE;
+
+                        }
+                    }).start();
+
                 }
             }
 
