@@ -160,57 +160,59 @@ public class ChartFragment extends Fragment {
         public void onReceive(Context context, Intent intent) {
             // Get extra data included in the Intent
             if (intent.hasExtra("fitHistory")) {
+
                 final ArrayList<PointValue> historyData = (ArrayList<PointValue>)intent.getSerializableExtra("fitHistory");
+                if (historyData.size() > 0) {
 
-                Line line = new Line(historyData);
-                line.setColor(ChartUtils.COLOR_RED);
-                line.setHasPoints(true);// too many values so don't draw points.
+                    Line line = new Line(historyData);
+                    line.setColor(ChartUtils.COLOR_RED);
+                    line.setHasPoints(true);// too many values so don't draw points.
 
-                List<Line> lines = new ArrayList<Line>();
-                lines.add(line);
-
-
-                mChartData = new LineChartData(lines);
-
-                //Calculate the bottom axis labels
-                long currentAxisTimestamp = (long)historyData.get(0).getX();
-                long lastTimestamp = (long)historyData.get(historyData.size() - 1).getX();
-
-                List<AxisValue> axisValues = new ArrayList<AxisValue>();
+                    List<Line> lines = new ArrayList<Line>();
+                    lines.add(line);
 
 
-                final long interval = 1000 * 60 * 60;
-                while (currentAxisTimestamp <= lastTimestamp) {
-                    //Add an axis with this timestamp
+                    mChartData = new LineChartData(lines);
 
-                    //Get the label for this time.
-                    String curLabel = getLabelForTimestamp(currentAxisTimestamp);
-                    axisValues.add(new AxisValue(currentAxisTimestamp, curLabel.toCharArray()));
-                    currentAxisTimestamp += interval;
+                    //Calculate the bottom axis labels
+                    long currentAxisTimestamp = (long) historyData.get(0).getX();
+                    long lastTimestamp = (long) historyData.get(historyData.size() - 1).getX();
+
+                    List<AxisValue> axisValues = new ArrayList<AxisValue>();
+
+
+                    final long interval = 1000 * 60 * 60;
+                    while (currentAxisTimestamp <= lastTimestamp) {
+                        //Add an axis with this timestamp
+
+                        //Get the label for this time.
+                        String curLabel = getLabelForTimestamp(currentAxisTimestamp);
+                        axisValues.add(new AxisValue(currentAxisTimestamp, curLabel.toCharArray()));
+                        currentAxisTimestamp += interval;
+                    }
+
+                    mChartData.setAxisXBottom(new Axis(axisValues).setName("Time"));
+                    mChartData.setAxisYLeft(Axis.generateAxisFromRange(30f, 190f, 10f).setHasLines(true).setName("Heart Rate"));
+
+                    // prepare preview data, is better to use separate deep copy for preview chart.
+                    // Set color to grey to make preview area more visible.
+                    mPreviewData = new LineChartData(mChartData);
+                    mPreviewData.getLines().get(0).setColor(ChartUtils.DEFAULT_DARKEN_COLOR);
+
+                    mLineChart.setLineChartData(mChartData);
+                    mLineChartPreview.setLineChartData(mPreviewData);
+                    mLineChartPreview.getLineChartData().getLines().get(0).setHasPoints(false);
+
+                    Viewport tempViewport = new Viewport(mLineChartPreview.getMaximumViewport());
+                    tempViewport.bottom = 30;
+                    tempViewport.top = 190;
+                    mLineChartPreview.setMaximumViewport(tempViewport);
+                    mLineChartPreview.setCurrentViewport(tempViewport);
+                    mLineChart.setMaximumViewport(tempViewport);
+                    mLineChart.setCurrentViewport(tempViewport);
+
+                    previewX(true);
                 }
-
-                mChartData.setAxisXBottom(new Axis(axisValues).setName("Time"));
-                mChartData.setAxisYLeft(Axis.generateAxisFromRange(30f, 190f, 10f).setHasLines(true).setName("Heart Rate"));
-
-                // prepare preview data, is better to use separate deep copy for preview chart.
-                // Set color to grey to make preview area more visible.
-                mPreviewData = new LineChartData(mChartData);
-                mPreviewData.getLines().get(0).setColor(ChartUtils.DEFAULT_DARKEN_COLOR);
-
-                mLineChart.setLineChartData(mChartData);
-                mLineChartPreview.setLineChartData(mPreviewData);
-                mLineChartPreview.getLineChartData().getLines().get(0).setHasPoints(false);
-
-                Viewport tempViewport = new Viewport(mLineChartPreview.getMaximumViewport());
-                tempViewport.bottom = 30;
-                tempViewport.top = 190;
-                mLineChartPreview.setMaximumViewport(tempViewport);
-                mLineChartPreview.setCurrentViewport(tempViewport);
-                mLineChart.setMaximumViewport(tempViewport);
-                mLineChart.setCurrentViewport(tempViewport);
-
-                previewX(true);
-
             }
         }
     };
